@@ -122,7 +122,7 @@ function App() {
         <Card title="Temperatura" icon={<span className="emoji">🌡️</span>} muted value="—" sub="Sin sensor todavía"/>
         <Card title="Humedad" icon={<span className="emoji">💧</span>} muted value="—" sub="Sin sensor todavía"/>
 
-        <section className="card wide">
+        <section className="card">
           <CardHead icon={<Lightbulb/>} title="Lámpara salón" right={lampOn ? "Encendida":"Apagada"} />
           <div className="control-row">
             <div className={lampOn?"state-dot on":"state-dot"}></div>
@@ -133,20 +133,20 @@ function App() {
           </div>
         </section>
 
-        <section className="card wide">
+        <section className="card">
+          <CardHead icon={<Snowflake/>} title="Congelador" />
+          <div className={freezerOpen?"big-status danger":"big-status"}>{freezerOpen?<><AlertTriangle/> Abierto</>:<><Lock/> Cerrado</>}</div>
+          <p className="muted">{freezerOpen?"La puerta está abierta":"Puerta cerrada correctamente"}</p>
+        </section>
+
+        <section className="card">
           <CardHead icon={<Tv/>} title="TV salón" />
           <div className="button-grid">
             <ActionButton icon={<Film/>} text="Modo Cine" on={()=>callService("script","turn_on",ENTITIES.movie)}/>
             <ActionButton icon={<Power/>} text="TV Encender" on={()=>callService("script","turn_on",ENTITIES.tvOn)}/>
             <ActionButton icon={<Power/>} text="TV Apagar" danger on={()=>callService("script","turn_on",ENTITIES.tvOff)}/>
-            <ActionButton icon={<Tv/>} text="Netflix" on={()=>callService("script","turn_on",ENTITIES.netflix)}/>
+            <ActionButton icon={<NetflixIcon/>} text="Netflix" netflix on={()=>callService("script","turn_on",ENTITIES.netflix)}/>
           </div>
-        </section>
-
-        <section className="card">
-          <CardHead icon={<Snowflake/>} title="Congelador" />
-          <div className={freezerOpen?"big-status danger":"big-status"}>{freezerOpen?<><AlertTriangle/> Abierto</>:<><Lock/> Cerrado</>}</div>
-          <p className="muted">{freezerOpen?"La puerta está abierta":"Puerta cerrada correctamente"}</p>
         </section>
 
         <section className="card">
@@ -187,7 +187,15 @@ function Card({title,icon,value,sub,muted}) {
  return <section className="card"><CardHead icon={icon} title={title}/><div className={muted?"big-number muted":"big-number"}>{value}</div><p className="muted">{sub}</p></section>
 }
 function CardHead({icon,title,right}) { return <div className="card-head"><div className="card-title">{icon}<b>{title}</b></div>{right&&<span className="badge">{right}</span>}</div> }
-function ActionButton({icon,text,on,danger}) { return <button className={danger?"action danger":"action"} onClick={on}>{icon}<span>{text}</span><ChevronRight size={17}/></button> }
+function ActionButton({icon,text,on,danger,netflix}) {
+  const cls = danger ? "action danger" : netflix ? "action netflix" : "action";
+  return <button className={cls} onClick={on}>{icon}<span>{text}</span><ChevronRight size={17}/></button>
+}
+function NetflixIcon() {
+  return <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 2h3.4l6.2 14.2V2H18v20h-3.3L8.4 7.7V22H5V2z"/>
+  </svg>
+}
 function Stat({label,value}) { return <div><span>{label}</span><strong>{value}</strong></div> }
 function Placeholder({icon,title,text}) { return <section className="empty-page"><div className="empty-icon">{icon}</div><h2>{title}</h2><p>{text}</p></section> }
 function SettingsPage({config,setConfig}) {
