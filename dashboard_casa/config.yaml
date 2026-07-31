@@ -1,0 +1,13 @@
+name: Dashboard Casa
+version: "1.0.0"
+slug: dashboard_casa
+description: Dashboard de control de la casa conectado con Home Assistant
+arch:
+  - amd64
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:home
+panel_title: Dashboard Casa
