@@ -61,59 +61,59 @@ function App() {
   const url = config.url || DEFAULT_URL;
   const token = config.token || "";
 
-  // ============================================================
-  // TEMA
-  // ============================================================
-
+  /*
+   * TEMA
+   */
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-
-    localStorage.setItem(
-      "casa_dark",
-      dark ? "1" : "0"
-    );
+    localStorage.setItem("casa_dark", dark ? "1" : "0");
   }, [dark]);
 
-  // ============================================================
-  // CONEXIÓN CON HOME ASSISTANT
-  // ============================================================
-
+  /*
+   * CONEXIÓN EN TIEMPO REAL CON HOME ASSISTANT
+   *
+   * Aquí hacemos dos cosas:
+   *
+   * 1. get_states al conectar para conocer el estado inicial.
+   *
+   * 2. subscribe_events para recibir automáticamente cualquier
+   *    cambio de estado de las entidades.
+   *
+   * Por ejemplo:
+   *
+   * congelador cerrado -> off
+   * congelador abierto  -> on
+   *
+   * Si lo abres/cierra físicamente, HA manda el cambio
+   * y React actualiza el dashboard inmediatamente.
+   */
   useEffect(() => {
     if (!token) {
       setConnected(false);
+      setStates({});
       return;
     }
 
-    let ws;
+    let ws = null;
     let alive = true;
 
     try {
       const wsUrl =
-        url.replace(/^http/, "ws") +
-        "/api/websocket";
+        url.replace(/^http/, "ws") + "/api/websocket";
 
       ws = new WebSocket(wsUrl);
 
-      // ----------------------------------------------------------
-      // CONEXIÓN ABIERTA
-      // ----------------------------------------------------------
-
       ws.onopen = () => {
-        console.log("Home Assistant WebSocket conectado");
+        console.log("WebSocket conectado");
       };
 
-      // ----------------------------------------------------------
-      // MENSAJES DE HOME ASSISTANT
-      // ----------------------------------------------------------
-
-      ws.onmessage = (e) => {
+      ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(e.data);
+          const msg = JSON.parse(event.data);
 
-          // ------------------------------------------------------
-          // HOME ASSISTANT PIDE AUTENTICACIÓN
-          // ------------------------------------------------------
-
+          /*
+           * HOME ASSISTANT PIDE AUTENTICACIÓN
+           */
           if (msg.type === "auth_required") {
             ws.send(
               JSON.stringify({
@@ -121,20 +121,22 @@ function App() {
                 access_token: token
               })
             );
+            return;
           }
 
-          // ------------------------------------------------------
-          // AUTENTICACIÓN CORRECTA
-          // ------------------------------------------------------
-
+          /*
+           * AUTENTICACIÓN CORRECTA
+           */
           if (msg.type === "auth_ok") {
-            console.log("Autenticación correcta");
+            console.log("Home Assistant autenticado");
 
             if (alive) {
               setConnected(true);
             }
 
-            // Pedimos todos los estados actuales
+            /*
+             * Pedimos todos los estados actuales.
+             */
             ws.send(
               JSON.stringify({
                 id: 1,
@@ -142,7 +144,10 @@ function App() {
               })
             );
 
-            // Nos suscribimos a todos los cambios de estado
+            /*
+             * MUY IMPORTANTE:
+             * Nos suscribimos a los cambios de estado.
+             */
             ws.send(
               JSON.stringify({
                 id: 2,
@@ -150,17 +155,14 @@ function App() {
                 event_type: "state_changed"
               })
             );
+
+            return;
           }
 
-          // ------------------------------------------------------
-          // ESTADOS INICIALES
-          // ------------------------------------------------------
-
-          if (
-            msg.id === 1 &&
-            msg.success &&
-            Array.isArray(msg.result)
-          ) {
+          /*
+           * ESTADOS INICIALES
+           */
+          if (msg.id === 1 && msg.success) {
             const map = Object.fromEntries(
               msg.result.map((entity) => [
                 entity.entity_id,
@@ -172,51 +174,60 @@ function App() {
               setStates(map);
             }
 
-            console.log(
-              "Estados iniciales recibidos:",
-              msg.result.length
-            );
+            return;
           }
 
-          // ------------------------------------------------------
-          // SUSCRIPCIÓN CORRECTA
-          // ------------------------------------------------------
-
-          if (
-            msg.id === 2 &&
-            msg.type === "result" &&
-            msg.success
-          ) {
+          /*
+           * SUSCRIPCIÓN A CAMBIOS CORRECTA
+           */
+          if (msg.id === 2 && msg.success) {
             console.log(
-              "Suscrito a cambios de estado"
+              "Suscripción a cambios de estado activa"
             );
+            return;
           }
 
-          // ------------------------------------------------------
-          // CAMBIO DE ESTADO EN TIEMPO REAL
-          // ------------------------------------------------------
-
+          /*
+           * CAMBIO DE ESTADO EN TIEMPO REAL
+           *
+           * Cada vez que cualquier entidad cambia,
+           * Home Assistant envía:
+           *
+           * event.data.entity_id
+           * event.data.new_state
+           */
           if (
             msg.type === "event" &&
-            msg.event?.event_type === "state_changed"
+            msg.event &&
+            msg.event.event_type === "state_changed"
           ) {
-            const newState =
-              msg.event.data?.new_state;
+            const eventData = msg.event.data;
 
-            if (!newState) {
+            if (!eventData || !eventData.entity_id) {
               return;
             }
 
-            if (alive) {
-              setStates((previousStates) => ({
-                ...previousStates,
-                [newState.entity_id]: newState
-              }));
+            const entityId = eventData.entity_id;
+            const newState = eventData.new_state;
+
+            if (!newState || !alive) {
+              return;
             }
 
+            /*
+             * Actualizamos solamente la entidad que ha cambiado.
+             */
+            setStates((previous) => ({
+              ...previous,
+              [entityId]: newState
+            }));
+
+            /*
+             * Para depuración:
+             */
             console.log(
               "Estado actualizado:",
-              newState.entity_id,
+              entityId,
               newState.state
             );
           }
@@ -228,29 +239,16 @@ function App() {
         }
       };
 
-      // ----------------------------------------------------------
-      // WEBSOCKET CERRADO
-      // ----------------------------------------------------------
-
       ws.onclose = () => {
-        console.log(
-          "Home Assistant WebSocket desconectado"
-        );
+        console.log("WebSocket cerrado");
 
         if (alive) {
           setConnected(false);
         }
       };
 
-      // ----------------------------------------------------------
-      // ERROR WEBSOCKET
-      // ----------------------------------------------------------
-
       ws.onerror = (error) => {
-        console.error(
-          "Error WebSocket:",
-          error
-        );
+        console.error("Error WebSocket:", error);
 
         if (alive) {
           setConnected(false);
@@ -258,17 +256,16 @@ function App() {
       };
     } catch (error) {
       console.error(
-        "No se pudo crear WebSocket:",
+        "No se pudo conectar con Home Assistant:",
         error
       );
 
       setConnected(false);
     }
 
-    // ----------------------------------------------------------
-    // LIMPIEZA
-    // ----------------------------------------------------------
-
+    /*
+     * LIMPIEZA AL SALIR / CAMBIAR CONFIGURACIÓN
+     */
     return () => {
       alive = false;
 
@@ -278,22 +275,23 @@ function App() {
     };
   }, [url, token]);
 
-  // ============================================================
-  // FUNCIONES PARA LEER ESTADOS
-  // ============================================================
-
+  /*
+   * OBTENER ESTADO DE UNA ENTIDAD
+   */
   const state = (entityId) => {
     return states[entityId]?.state;
   };
 
+  /*
+   * OBTENER ATRIBUTO DE UNA ENTIDAD
+   */
   const attr = (entityId, key) => {
     return states[entityId]?.attributes?.[key];
   };
 
-  // ============================================================
-  // LLAMAR A UN SERVICIO DE HOME ASSISTANT
-  // ============================================================
-
+  /*
+   * LLAMAR A UN SERVICIO DE HOME ASSISTANT
+   */
   async function callService(
     domain,
     service,
@@ -303,7 +301,6 @@ function App() {
       setMessage(
         "Añade tu token en ⚙️ Ajustes."
       );
-
       return;
     }
 
@@ -312,12 +309,10 @@ function App() {
         `${url}/api/services/${domain}/${service}`,
         {
           method: "POST",
-
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-
           body: JSON.stringify({
             entity_id
           })
@@ -337,7 +332,7 @@ function App() {
       }, 1600);
     } catch (error) {
       console.error(
-        "Error ejecutando acción:",
+        "Error ejecutando servicio:",
         error
       );
 
@@ -347,20 +342,30 @@ function App() {
 
       setTimeout(() => {
         setMessage("");
-      }, 2500);
+      }, 2000);
     }
   }
 
-  // ============================================================
-  // ESTADOS DE LA CASA
-  // ============================================================
-
+  /*
+   * ESTADO LÁMPARA
+   */
   const lampOn =
     state(ENTITIES.lamp) === "on";
 
+  /*
+   * ESTADO CONGELADOR
+   *
+   * En un binary_sensor de contacto:
+   *
+   * on  = abierto
+   * off = cerrado
+   */
   const freezerOpen =
     state(ENTITIES.freezer) === "on";
 
+  /*
+   * CONSUMO
+   */
   const power =
     state(ENTITIES.power);
 
@@ -380,10 +385,9 @@ function App() {
   const yesterdayCost =
     yesterdayKwh * price;
 
-  // ============================================================
-  // NAVEGACIÓN
-  // ============================================================
-
+  /*
+   * NAVEGACIÓN
+   */
   const nav = [
     ["Domótica", House],
     ["Tareas", CheckSquare],
@@ -392,16 +396,10 @@ function App() {
     ["Ajustes", Settings]
   ];
 
-  // ============================================================
-  // INTERFAZ
-  // ============================================================
-
   return (
     <div className="app">
 
-      {/* ======================================================
-          SIDEBAR
-      ====================================================== */}
+      {/* SIDEBAR */}
 
       <aside className="sidebar">
 
@@ -419,6 +417,7 @@ function App() {
         </div>
 
         <nav>
+
           {nav.map(([name, Icon]) => (
             <button
               key={name}
@@ -435,6 +434,7 @@ function App() {
               <span>{name}</span>
             </button>
           ))}
+
         </nav>
 
         <div className="sidebar-bottom">
@@ -475,11 +475,10 @@ function App() {
           </div>
 
         </div>
+
       </aside>
 
-      {/* ======================================================
-          CONTENIDO PRINCIPAL
-      ====================================================== */}
+      {/* CONTENIDO PRINCIPAL */}
 
       <main>
 
@@ -491,9 +490,7 @@ function App() {
               MI CASA
             </div>
 
-            <h1>
-              {page}
-            </h1>
+            <h1>{page}</h1>
 
           </div>
 
@@ -515,19 +512,13 @@ function App() {
 
         </header>
 
-        {/* ====================================================
-            MENSAJE
-        ==================================================== */}
-
         {message && (
           <div className="toast">
             {message}
           </div>
         )}
 
-        {/* ====================================================
-            DOMÓTICA
-        ==================================================== */}
+        {/* DOMÓTICA */}
 
         {page === "Domótica" && (
 
@@ -561,9 +552,7 @@ function App() {
               sub="Sin sensor todavía"
             />
 
-            {/* =================================================
-                LÁMPARA
-            ================================================= */}
+            {/* LÁMPARA */}
 
             <section className="card wide">
 
@@ -618,9 +607,7 @@ function App() {
 
             </section>
 
-            {/* =================================================
-                TV
-            ================================================= */}
+            {/* TV */}
 
             <section className="card wide">
 
@@ -684,15 +671,18 @@ function App() {
 
             </section>
 
-            {/* =================================================
-                CONGELADOR
-            ================================================= */}
+            {/* CONGELADOR */}
 
             <section className="card">
 
               <CardHead
                 icon={<Snowflake />}
                 title="Congelador"
+                right={
+                  freezerOpen
+                    ? "Abierto"
+                    : "Cerrado"
+                }
               />
 
               <div
@@ -727,9 +717,7 @@ function App() {
 
             </section>
 
-            {/* =================================================
-                PERSIANAS
-            ================================================= */}
+            {/* PERSIANAS */}
 
             <section className="card">
 
@@ -749,7 +737,6 @@ function App() {
                 </div>
 
                 <div className="blind-buttons">
-
                   <button disabled>
                     ↑
                   </button>
@@ -761,7 +748,6 @@ function App() {
                   <button disabled>
                     ↓
                   </button>
-
                 </div>
 
               </div>
@@ -798,9 +784,7 @@ function App() {
 
             </section>
 
-            {/* =================================================
-                CONSUMO
-            ================================================= */}
+            {/* CONSUMO */}
 
             <section className="card wide">
 
@@ -826,9 +810,7 @@ function App() {
                 <Stat
                   label="Energía acumulada"
                   value={
-                    Number.isFinite(
-                      energy
-                    )
+                    Number.isFinite(energy)
                       ? `${energy.toFixed(
                           2
                         )} kWh`
@@ -862,47 +844,13 @@ function App() {
 
               <div className="mini-chart">
 
-                <span
-                  style={{
-                    height: "28%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "44%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "35%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "65%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "48%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "30%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "52%"
-                  }}
-                />
+                <span style={{ height: "28%" }} />
+                <span style={{ height: "44%" }} />
+                <span style={{ height: "35%" }} />
+                <span style={{ height: "65%" }} />
+                <span style={{ height: "48%" }} />
+                <span style={{ height: "30%" }} />
+                <span style={{ height: "52%" }} />
 
               </div>
 
@@ -927,11 +875,10 @@ function App() {
             </section>
 
           </section>
+
         )}
 
-        {/* ====================================================
-            TAREAS
-        ==================================================== */}
+        {/* TAREAS */}
 
         {page === "Tareas" && (
           <Placeholder
@@ -941,9 +888,7 @@ function App() {
           />
         )}
 
-        {/* ====================================================
-            COMPRA
-        ==================================================== */}
+        {/* COMPRA */}
 
         {page === "Compra" && (
           <Placeholder
@@ -953,9 +898,7 @@ function App() {
           />
         )}
 
-        {/* ====================================================
-            CALENDARIO
-        ==================================================== */}
+        {/* CALENDARIO */}
 
         {page === "Calendario" && (
           <Placeholder
@@ -965,9 +908,7 @@ function App() {
           />
         )}
 
-        {/* ====================================================
-            AJUSTES
-        ==================================================== */}
+        {/* AJUSTES */}
 
         {page === "Ajustes" && (
           <SettingsPage
@@ -982,9 +923,10 @@ function App() {
   );
 }
 
-// ============================================================
-// COMPONENTE CARD
-// ============================================================
+
+/*
+ * CARD
+ */
 
 function Card({
   title,
@@ -1019,9 +961,10 @@ function Card({
   );
 }
 
-// ============================================================
-// CABECERA DE CARD
-// ============================================================
+
+/*
+ * CABECERA DE CARD
+ */
 
 function CardHead({
   icon,
@@ -1035,9 +978,7 @@ function CardHead({
 
         {icon}
 
-        <b>
-          {title}
-        </b>
+        <b>{title}</b>
 
       </div>
 
@@ -1051,9 +992,10 @@ function CardHead({
   );
 }
 
-// ============================================================
-// BOTÓN DE ACCIÓN
-// ============================================================
+
+/*
+ * BOTÓN DE ACCIÓN
+ */
 
 function ActionButton({
   icon,
@@ -1073,9 +1015,7 @@ function ActionButton({
 
       {icon}
 
-      <span>
-        {text}
-      </span>
+      <span>{text}</span>
 
       <ChevronRight size={17} />
 
@@ -1083,9 +1023,10 @@ function ActionButton({
   );
 }
 
-// ============================================================
-// ESTADÍSTICA
-// ============================================================
+
+/*
+ * ESTADÍSTICA
+ */
 
 function Stat({
   label,
@@ -1094,21 +1035,18 @@ function Stat({
   return (
     <div>
 
-      <span>
-        {label}
-      </span>
+      <span>{label}</span>
 
-      <strong>
-        {value}
-      </strong>
+      <strong>{value}</strong>
 
     </div>
   );
 }
 
-// ============================================================
-// PÁGINA VACÍA
-// ============================================================
+
+/*
+ * PÁGINAS VACÍAS
+ */
 
 function Placeholder({
   icon,
@@ -1122,21 +1060,18 @@ function Placeholder({
         {icon}
       </div>
 
-      <h2>
-        {title}
-      </h2>
+      <h2>{title}</h2>
 
-      <p>
-        {text}
-      </p>
+      <p>{text}</p>
 
     </section>
   );
 }
 
-// ============================================================
-// AJUSTES
-// ============================================================
+
+/*
+ * AJUSTES
+ */
 
 function SettingsPage({
   config,
@@ -1179,9 +1114,7 @@ function SettingsPage({
   return (
     <section className="settings card">
 
-      <h2>
-        Configuración
-      </h2>
+      <h2>Configuración</h2>
 
       <p className="muted">
         Los datos se guardan localmente
@@ -1272,9 +1205,6 @@ function SettingsPage({
   );
 }
 
-// ============================================================
-// ARRANQUE DE REACT
-// ============================================================
 
 createRoot(
   document.getElementById("root")
