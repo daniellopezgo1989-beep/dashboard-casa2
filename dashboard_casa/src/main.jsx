@@ -45,6 +45,33 @@ const ENTITIES = {
   energy: "sensor.lampara_energy"
 };
 
+const BADGE_STYLES = {
+  netflix: {
+    background: "#e50914"
+  },
+  hbo: {
+    background: "linear-gradient(135deg,#7b2ff7,#1a0b2e)"
+  },
+  prime: {
+    background: "linear-gradient(135deg,#00a8e1,#00415f)"
+  },
+  movistar: {
+    background: "linear-gradient(135deg,#0193f4,#014a8f)"
+  },
+  maxplayer: {
+    background: "linear-gradient(135deg,#5b5b66,#232329)"
+  },
+  cine: {
+    background: "linear-gradient(135deg,#0af0ff,#0a6fbf)"
+  },
+  tvon: {
+    background: "linear-gradient(135deg,#34e5b9,#0a8f6e)"
+  },
+  tvoff: {
+    background: "linear-gradient(135deg,#ff6b5e,#8f1f16)"
+  }
+};
+
 function loadConfig() {
   try {
     return {
@@ -857,7 +884,24 @@ function CardHead({
 
 function AppBadge({ children, variant }) {
   return (
-    <div className={`app-badge ${variant}`}>
+    <div
+      className="app-badge"
+      style={{
+        width: 42,
+        height: 42,
+        minWidth: 42,
+        borderRadius: 11,
+        display: "grid",
+        placeItems: "center",
+        color: "#fff",
+        fontWeight: 800,
+        fontSize: 17,
+        flex: "none",
+        boxShadow:
+          "0 4px 12px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.12)",
+        ...BADGE_STYLES[variant]
+      }}
+    >
       {children}
     </div>
   );
