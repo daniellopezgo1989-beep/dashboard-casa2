@@ -475,7 +475,12 @@ function App() {
               <div className="button-grid">
 
                 <ActionButton
-                  icon={<Film />}
+                  className="app-tv cine"
+                  icon={
+                    <AppBadge variant="cine">
+                      <Film size={20} />
+                    </AppBadge>
+                  }
                   text="Modo Cine"
                   on={() =>
                     callService(
@@ -487,7 +492,12 @@ function App() {
                 />
 
                 <ActionButton
-                  icon={<Power />}
+                  className="app-tv tvon"
+                  icon={
+                    <AppBadge variant="tvon">
+                      <Power size={20} />
+                    </AppBadge>
+                  }
                   text="TV Encender"
                   on={() =>
                     callService(
@@ -499,9 +509,13 @@ function App() {
                 />
 
                 <ActionButton
-                  icon={<Power />}
+                  className="app-tv tvoff"
+                  icon={
+                    <AppBadge variant="tvoff">
+                      <Power size={20} />
+                    </AppBadge>
+                  }
                   text="TV Apagar"
-                  danger
                   on={() =>
                     callService(
                       "script",
@@ -516,15 +530,9 @@ function App() {
                 <ActionButton
                   className="app-tv netflix"
                   icon={
-                    <img
-                      src="/apps/netflix.png"
-                      className="app-icon"
-                      alt="Netflix"
-                      onError={(e) => {
-                        e.currentTarget.style.visibility =
-                          "hidden";
-                      }}
-                    />
+                    <AppBadge variant="netflix">
+                      N
+                    </AppBadge>
                   }
                   text="Netflix"
                   on={() =>
@@ -541,15 +549,9 @@ function App() {
                 <ActionButton
                   className="app-tv hbo"
                   icon={
-                    <img
-                      src="/apps/hbo-max.png"
-                      className="app-icon"
-                      alt="HBO Max"
-                      onError={(e) => {
-                        e.currentTarget.style.visibility =
-                          "hidden";
-                      }}
-                    />
+                    <AppBadge variant="hbo">
+                      H
+                    </AppBadge>
                   }
                   text="HBO Max"
                   on={() =>
@@ -566,15 +568,9 @@ function App() {
                 <ActionButton
                   className="app-tv prime"
                   icon={
-                    <img
-                      src="/apps/prime-video.png"
-                      className="app-icon"
-                      alt="Prime Video"
-                      onError={(e) => {
-                        e.currentTarget.style.visibility =
-                          "hidden";
-                      }}
-                    />
+                    <AppBadge variant="prime">
+                      P
+                    </AppBadge>
                   }
                   text="Prime Video"
                   on={() =>
@@ -591,15 +587,9 @@ function App() {
                 <ActionButton
                   className="app-tv movistar"
                   icon={
-                    <img
-                      src="/apps/movistar.png"
-                      className="app-icon"
-                      alt="Movistar"
-                      onError={(e) => {
-                        e.currentTarget.style.visibility =
-                          "hidden";
-                      }}
-                    />
+                    <AppBadge variant="movistar">
+                      M
+                    </AppBadge>
                   }
                   text="Movistar HDMI"
                   on={() =>
@@ -616,15 +606,9 @@ function App() {
                 <ActionButton
                   className="app-tv maxplayer"
                   icon={
-                    <img
-                      src="/apps/max.png"
-                      className="app-icon"
-                      alt="Max"
-                      onError={(e) => {
-                        e.currentTarget.style.visibility =
-                          "hidden";
-                      }}
-                    />
+                    <AppBadge variant="maxplayer">
+                      <Tv size={20} />
+                    </AppBadge>
                   }
                   text="Max Player"
                   on={() =>
@@ -867,6 +851,14 @@ function CardHead({
           {right}
         </span>
       )}
+    </div>
+  );
+}
+
+function AppBadge({ children, variant }) {
+  return (
+    <div className={`app-badge ${variant}`}>
+      {children}
     </div>
   );
 }
