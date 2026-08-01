@@ -1,4 +1,6 @@
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box
+}
 
 :root{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Inter,system-ui,sans-serif;
@@ -207,9 +209,13 @@ h1{
   font-size:12px
 }
 
+/* =========================================================
+   GRID PRINCIPAL — 4 columnas base
+   ========================================================= */
+
 .grid{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:18px
 }
 
@@ -221,9 +227,7 @@ h1{
   border:1px solid var(--line);
   border-radius:22px;
   padding:22px;
-  box-shadow:
-    var(--shadow),
-    inset 0 1px 0 rgba(255,255,255,.08)
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.08)
 }
 
 .card::before{
@@ -239,7 +243,13 @@ h1{
   pointer-events:none
 }
 
+/* fila completa (4/4) — TV salón */
 .wide{
+  grid-column:span 4
+}
+
+/* media fila (2/4) — Persianas, Consumo, Tareas, Calendario */
+.half{
   grid-column:span 2
 }
 
@@ -272,7 +282,7 @@ h1{
 }
 
 .big-number{
-  font-size:42px;
+  font-size:36px;
   font-weight:700;
   letter-spacing:-.04em
 }
@@ -305,131 +315,38 @@ h1{
 
 .state-dot.on{
   background:var(--green);
-  box-shadow:
-    0 0 0 5px rgba(52,199,89,.12),
-    0 0 14px rgba(52,229,185,.55)
+  box-shadow:0 0 0 5px rgba(52,199,89,.12)
 }
-
-/* =========================================================
-   BOTÓN LÁMPARA SALÓN
-   ========================================================= */
 
 .ios-button{
-  position:relative;
-  overflow:hidden;
-
-  border:1px solid rgba(255,255,255,.14);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255,255,255,.13),
-      rgba(255,255,255,.055)
-    );
-
-  color:var(--text);
-
-  border-radius:14px;
-
-  padding:10px 16px;
-
+  border:0;
+  background:var(--blue);
+  color:#fff;
+  border-radius:13px;
+  padding:10px 15px;
   display:flex;
-  gap:8px;
+  gap:7px;
   align-items:center;
-
   font-weight:600;
-  cursor:pointer;
-
-  backdrop-filter:blur(16px) saturate(150%);
-  -webkit-backdrop-filter:blur(16px) saturate(150%);
-
-  box-shadow:
-    0 6px 18px rgba(0,0,0,.18),
-    inset 0 1px 0 rgba(255,255,255,.12);
-
-  transition:
-    transform .18s ease,
-    background .18s ease,
-    border-color .18s ease,
-    box-shadow .18s ease
+  cursor:pointer
 }
 
-.ios-button::before{
-  content:"";
-  position:absolute;
-  inset:0;
-
-  background:
-    linear-gradient(
-      120deg,
-      rgba(255,255,255,.12),
-      transparent 45%
-    );
-
-  pointer-events:none
+.icon-toggle{
+  border:0;
+  background:var(--blue);
+  color:#fff;
+  width:34px;
+  height:34px;
+  min-width:34px;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  cursor:pointer
 }
 
-.ios-button:hover{
-  transform:translateY(-1px);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255,255,255,.18),
-      rgba(255,255,255,.08)
-    );
-
-  border-color:rgba(255,255,255,.22);
-
-  box-shadow:
-    0 9px 24px rgba(0,0,0,.24),
-    inset 0 1px 0 rgba(255,255,255,.16)
+.icon-toggle:hover{
+  opacity:.85
 }
-
-.ios-button:active{
-  transform:scale(.97)
-}
-
-.ios-button svg{
-  position:relative;
-  z-index:1;
-  width:17px;
-  height:17px;
-  opacity:.9
-}
-
-/* Lámpara encendida */
-
-.state-dot.on + strong + .ios-button{
-  border-color:rgba(52,229,185,.28);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(52,229,185,.16),
-      rgba(255,255,255,.055)
-    );
-
-  box-shadow:
-    0 6px 22px rgba(0,0,0,.20),
-    0 0 18px rgba(52,229,185,.08),
-    inset 0 1px 0 rgba(255,255,255,.13)
-}
-
-.state-dot.on + strong + .ios-button:hover{
-  border-color:rgba(52,229,185,.42);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(52,229,185,.23),
-      rgba(255,255,255,.08)
-    )
-}
-
-/* =========================================================
-   BOTONES GENERALES
-   ========================================================= */
 
 .button-grid{
   display:grid;
@@ -449,7 +366,6 @@ h1{
   cursor:pointer;
   font-weight:600;
   min-height:58px;
-
   transition:
     transform .15s ease,
     background .15s ease,
@@ -465,7 +381,7 @@ h1{
   transform:scale(.98)
 }
 
-.action span{
+.action > span{
   flex:1;
   text-align:left
 }
@@ -478,6 +394,7 @@ h1{
 .action.danger:hover{
   background:rgba(255,59,48,.16)
 }
+
 
 /* =========================================================
    BOTONES DE APPS DE TV
@@ -492,7 +409,10 @@ h1{
   color:var(--text);
   border:1px solid rgba(255,255,255,.08);
   backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px)
+  -webkit-backdrop-filter:blur(10px);
+  display:flex;
+  align-items:center;
+  gap:9px
 }
 
 .action.app-tv:hover{
@@ -501,159 +421,173 @@ h1{
   box-shadow:0 8px 22px rgba(0,0,0,.15)
 }
 
-.action.app-tv .app-icon{
-  width:42px;
-  height:42px;
-  min-width:42px;
-  border-radius:11px;
-  object-fit:cover;
-  display:block;
-
-  box-shadow:
-    0 4px 12px rgba(0,0,0,.25),
-    inset 0 0 0 1px rgba(255,255,255,.12)
-}
-
-.action.app-tv .app-icon-fallback{
-  width:42px;
-  height:42px;
-  min-width:42px;
-  border-radius:11px;
+.action.app-tv .action-icon{
+  width:44px;
+  height:44px;
+  min-width:44px;
   display:grid;
   place-items:center;
-  background:rgba(255,255,255,.10);
-  color:var(--blue)
+  flex:none
 }
 
 .action.app-tv .app-name{
   flex:1;
+  min-width:0;
   text-align:left;
   font-size:13px;
   line-height:1.15;
-  font-weight:700
+  font-weight:700;
+  white-space:normal
 }
 
 .action.app-tv .app-arrow{
   width:15px;
   min-width:15px;
-  opacity:.45
+  opacity:.45;
+  flex:none
 }
+
 
 /* =========================================================
    NETFLIX
    ========================================================= */
 
-.action.netflix{
+.action.app-tv.netflix{
   background:rgba(0,0,0,.55);
   color:#fff
 }
 
-.action.netflix:hover{
+.action.app-tv.netflix:hover{
   background:rgba(0,0,0,.72)
 }
 
-.action.netflix .app-icon{
-  background:#000
-}
 
 /* =========================================================
    HBO MAX
    ========================================================= */
 
-.action.hbo{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(111,44,181,.30),
-      rgba(20,10,45,.60)
-    );
+.action.app-tv.hbo{
+  background:linear-gradient(
+    135deg,
+    rgba(111,44,181,.30),
+    rgba(20,10,45,.60)
+  );
   color:#fff
 }
 
-.action.hbo:hover{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(111,44,181,.45),
-      rgba(20,10,45,.75)
-    )
+.action.app-tv.hbo:hover{
+  background:linear-gradient(
+    135deg,
+    rgba(111,44,181,.45),
+    rgba(20,10,45,.75)
+  )
 }
+
 
 /* =========================================================
    PRIME VIDEO
    ========================================================= */
 
-.action.prime{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(0,168,225,.18),
-      rgba(0,65,100,.48)
-    );
+.action.app-tv.prime{
+  background:linear-gradient(
+    135deg,
+    rgba(0,168,225,.18),
+    rgba(0,65,100,.48)
+  );
   color:#fff
 }
 
-.action.prime:hover{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(0,168,225,.30),
-      rgba(0,65,100,.65)
-    )
+.action.app-tv.prime:hover{
+  background:linear-gradient(
+    135deg,
+    rgba(0,168,225,.30),
+    rgba(0,65,100,.65)
+  )
 }
+
 
 /* =========================================================
    MOVISTAR
    ========================================================= */
 
-.action.movistar{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(0,145,255,.22),
-      rgba(0,70,150,.48)
-    );
+.action.app-tv.movistar{
+  background:linear-gradient(
+    135deg,
+    rgba(0,145,255,.22),
+    rgba(0,70,150,.48)
+  );
   color:#fff
 }
 
-.action.movistar:hover{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(0,145,255,.34),
-      rgba(0,70,150,.65)
-    )
+.action.app-tv.movistar:hover{
+  background:linear-gradient(
+    135deg,
+    rgba(0,145,255,.34),
+    rgba(0,70,150,.65)
+  )
 }
+
 
 /* =========================================================
    MAX PLAYER
    ========================================================= */
 
-.action.maxplayer{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255,255,255,.10),
-      rgba(90,90,100,.18)
-    );
+.action.app-tv.maxplayer{
+  background:linear-gradient(
+    135deg,
+    rgba(255,255,255,.10),
+    rgba(90,90,100,.18)
+  );
   color:#fff
 }
 
-.action.maxplayer:hover{
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255,255,255,.17),
-      rgba(90,90,100,.28)
-    )
+.action.app-tv.maxplayer:hover{
+  background:linear-gradient(
+    135deg,
+    rgba(255,255,255,.17),
+    rgba(90,90,100,.28)
+  )
 }
+
+
+/* =========================================================
+   MODO CINE / TV ENCENDER / TV APAGAR
+   ========================================================= */
+
+.action.app-tv.cine{
+  background:rgba(10,240,255,.10);
+  color:#fff
+}
+
+.action.app-tv.cine:hover{
+  background:rgba(10,240,255,.18)
+}
+
+.action.app-tv.tvon{
+  background:rgba(52,229,185,.10);
+  color:#fff
+}
+
+.action.app-tv.tvon:hover{
+  background:rgba(52,229,185,.18)
+}
+
+.action.app-tv.tvoff{
+  background:rgba(255,107,94,.10);
+  color:#fff
+}
+
+.action.app-tv.tvoff:hover{
+  background:rgba(255,107,94,.18)
+}
+
 
 /* =========================================================
    CONGELADOR
    ========================================================= */
 
 .big-status{
-  font-size:22px;
+  font-size:19px;
   font-weight:700;
   display:flex;
   gap:10px;
@@ -671,6 +605,7 @@ h1{
 .big-status.danger{
   color:var(--red)
 }
+
 
 /* =========================================================
    PERSIANAS
@@ -716,6 +651,7 @@ h1{
   color:var(--muted)
 }
 
+
 /* =========================================================
    CONSUMO
    ========================================================= */
@@ -740,7 +676,7 @@ h1{
 }
 
 .stats strong{
-  font-size:20px
+  font-size:18px
 }
 
 .mini-chart{
@@ -777,6 +713,7 @@ h1{
   margin-bottom:0
 }
 
+
 /* =========================================================
    TOAST
    ========================================================= */
@@ -794,6 +731,7 @@ h1{
   box-shadow:0 10px 30px #0003;
   font-size:13px
 }
+
 
 /* =========================================================
    PÁGINAS VACÍAS
@@ -827,6 +765,7 @@ h1{
 .empty-page p{
   margin:0
 }
+
 
 /* =========================================================
    AJUSTES
@@ -885,6 +824,7 @@ h1{
   font-size:12px;
   line-height:1.4
 }
+
 
 /* =========================================================
    MÓVIL
@@ -958,7 +898,8 @@ h1{
     gap:14px
   }
 
-  .wide{
+  .wide,
+  .half{
     grid-column:span 1
   }
 
@@ -980,21 +921,14 @@ h1{
     padding:8px
   }
 
-  .action.app-tv .app-icon,
-  .action.app-tv .app-icon-fallback{
+  .action.app-tv .action-icon{
     width:38px;
     height:38px;
-    min-width:38px;
-    border-radius:10px
+    min-width:38px
   }
 
   .action.app-tv .app-name{
     font-size:12px
-  }
-
-  .ios-button{
-    padding:9px 13px;
-    border-radius:13px
   }
 
 }
