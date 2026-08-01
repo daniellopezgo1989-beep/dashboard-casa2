@@ -45,31 +45,25 @@ const ENTITIES = {
   energy: "sensor.lampara_energy"
 };
 
-const BADGE_STYLES = {
-  netflix: {
-    background: "#e50914"
-  },
-  hbo: {
-    background: "linear-gradient(135deg,#7b2ff7,#1a0b2e)"
-  },
-  prime: {
-    background: "linear-gradient(135deg,#00a8e1,#00415f)"
-  },
-  movistar: {
-    background: "linear-gradient(135deg,#0193f4,#014a8f)"
-  },
-  maxplayer: {
-    background: "linear-gradient(135deg,#5b5b66,#232329)"
-  },
-  cine: {
-    background: "linear-gradient(135deg,#0af0ff,#0a6fbf)"
-  },
-  tvon: {
-    background: "linear-gradient(135deg,#34e5b9,#0a8f6e)"
-  },
-  tvoff: {
-    background: "linear-gradient(135deg,#ff6b5e,#8f1f16)"
-  }
+const ICON_BG = {
+  netflix: { background: "#e50914" },
+  hbo: { background: "linear-gradient(135deg,#7b2ff7,#1a0b2e)" },
+  prime: { background: "linear-gradient(135deg,#00a8e1,#00415f)" },
+  movistar: { background: "linear-gradient(135deg,#0193f4,#014a8f)" },
+  maxplayer: { background: "linear-gradient(135deg,#5b5b66,#232329)" },
+  cine: { background: "linear-gradient(135deg,#0af0ff,#0a6fbf)" },
+  tvon: { background: "linear-gradient(135deg,#34e5b9,#0a8f6e)" },
+  tvoff: { background: "linear-gradient(135deg,#ff6b5e,#8f1f16)" }
+};
+
+// Slugs de la librería pública "simple-icons" (logos oficiales de marca).
+// Si algún logo no existe con ese nombre, el componente cae solo en la letra.
+const ICON_SLUGS = {
+  netflix: "netflix",
+  hbo: "hbomax",
+  prime: "primevideo",
+  movistar: "movistarplus"
+  // cine, tvon, tvoff y maxplayer no tienen app real -> sin slug
 };
 
 function loadConfig() {
@@ -504,9 +498,12 @@ function App() {
                 <ActionButton
                   className="app-tv cine"
                   icon={
-                    <AppBadge variant="cine">
-                      <Film size={20} />
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.cine}
+                      name="Modo Cine"
+                      bg={ICON_BG.cine}
+                      fallback={<Film size={20} color="#fff" />}
+                    />
                   }
                   text="Modo Cine"
                   on={() =>
@@ -521,9 +518,12 @@ function App() {
                 <ActionButton
                   className="app-tv tvon"
                   icon={
-                    <AppBadge variant="tvon">
-                      <Power size={20} />
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.tvon}
+                      name="TV Encender"
+                      bg={ICON_BG.tvon}
+                      fallback={<Power size={20} color="#fff" />}
+                    />
                   }
                   text="TV Encender"
                   on={() =>
@@ -538,9 +538,12 @@ function App() {
                 <ActionButton
                   className="app-tv tvoff"
                   icon={
-                    <AppBadge variant="tvoff">
-                      <Power size={20} />
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.tvoff}
+                      name="TV Apagar"
+                      bg={ICON_BG.tvoff}
+                      fallback={<Power size={20} color="#fff" />}
+                    />
                   }
                   text="TV Apagar"
                   on={() =>
@@ -557,9 +560,12 @@ function App() {
                 <ActionButton
                   className="app-tv netflix"
                   icon={
-                    <AppBadge variant="netflix">
-                      N
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.netflix}
+                      name="Netflix"
+                      bg={ICON_BG.netflix}
+                      fallback="N"
+                    />
                   }
                   text="Netflix"
                   on={() =>
@@ -576,9 +582,12 @@ function App() {
                 <ActionButton
                   className="app-tv hbo"
                   icon={
-                    <AppBadge variant="hbo">
-                      H
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.hbo}
+                      name="HBO Max"
+                      bg={ICON_BG.hbo}
+                      fallback="H"
+                    />
                   }
                   text="HBO Max"
                   on={() =>
@@ -595,9 +604,12 @@ function App() {
                 <ActionButton
                   className="app-tv prime"
                   icon={
-                    <AppBadge variant="prime">
-                      P
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.prime}
+                      name="Prime Video"
+                      bg={ICON_BG.prime}
+                      fallback="P"
+                    />
                   }
                   text="Prime Video"
                   on={() =>
@@ -614,9 +626,12 @@ function App() {
                 <ActionButton
                   className="app-tv movistar"
                   icon={
-                    <AppBadge variant="movistar">
-                      M
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.movistar}
+                      name="Movistar HDMI"
+                      bg={ICON_BG.movistar}
+                      fallback="M"
+                    />
                   }
                   text="Movistar HDMI"
                   on={() =>
@@ -633,9 +648,12 @@ function App() {
                 <ActionButton
                   className="app-tv maxplayer"
                   icon={
-                    <AppBadge variant="maxplayer">
-                      <Tv size={20} />
-                    </AppBadge>
+                    <AppIcon
+                      slug={ICON_SLUGS.maxplayer}
+                      name="Max Player"
+                      bg={ICON_BG.maxplayer}
+                      fallback={<Tv size={20} color="#fff" />}
+                    />
                   }
                   text="Max Player"
                   on={() =>
@@ -882,27 +900,55 @@ function CardHead({
   );
 }
 
-function AppBadge({ children, variant }) {
+// Icono de app: intenta cargar el logo real (simple-icons).
+// Si no existe ese slug o falla la carga, muestra el "fallback"
+// (una letra o un icono de lucide) sobre el mismo fondo de color.
+function AppIcon({ slug, name, bg, fallback }) {
+  const [failed, setFailed] = useState(false);
+
+  const showImage = Boolean(slug) && !failed;
+
   return (
     <div
-      className="app-badge"
+      className="app-icon-tile"
       style={{
-        width: 42,
-        height: 42,
-        minWidth: 42,
-        borderRadius: 11,
+        width: 44,
+        height: 44,
+        minWidth: 44,
+        borderRadius: 12,
         display: "grid",
         placeItems: "center",
-        color: "#fff",
-        fontWeight: 800,
-        fontSize: 17,
         flex: "none",
         boxShadow:
-          "0 4px 12px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.12)",
-        ...BADGE_STYLES[variant]
+          "0 4px 12px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.14)",
+        ...bg
       }}
     >
-      {children}
+      {showImage ? (
+        <img
+          src={`https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/${slug}.svg`}
+          alt={name}
+          onError={() => setFailed(true)}
+          style={{
+            width: 22,
+            height: 22,
+            filter: "brightness(0) invert(1)",
+            display: "block"
+          }}
+        />
+      ) : typeof fallback === "string" ? (
+        <span
+          style={{
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: 18
+          }}
+        >
+          {fallback}
+        </span>
+      ) : (
+        fallback
+      )}
     </div>
   );
 }
