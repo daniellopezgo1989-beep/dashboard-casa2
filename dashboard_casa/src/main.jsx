@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const DEFAULT_URL = "http://192.168.1.39:8123";
+const DEFAULT_URL = "http://100.67.184.82:8123";
 const DEFAULT_PRICE = 0.216;
 
 const ENTITIES = {
@@ -53,6 +53,7 @@ function App() {
   const [dark, setDark] = useState(
     localStorage.getItem("casa_dark") === "1"
   );
+
   const [connected, setConnected] = useState(false);
   const [states, setStates] = useState({});
   const [message, setMessage] = useState("");
@@ -60,14 +61,23 @@ function App() {
   const url = config.url || DEFAULT_URL;
   const token = config.token || "";
 
+  // ============================================================
+  // TEMA
+  // ============================================================
+
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("casa_dark", dark ? "1" : "0");
+
+    localStorage.setItem(
+      "casa_dark",
+      dark ? "1" : "0"
+    );
   }, [dark]);
 
-  /*
-   * CONEXIÓN CON HOME ASSISTANT
-   */
+  // ============================================================
+  // CONEXIÓN CON HOME ASSISTANT
+  // ============================================================
+
   useEffect(() => {
     if (!token) {
       setConnected(false);
@@ -79,21 +89,30 @@ function App() {
 
     try {
       const wsUrl =
-        url.replace(/^http/, "ws") + "/api/websocket";
-
-      console.log("Conectando WebSocket:", wsUrl);
+        url.replace(/^http/, "ws") +
+        "/api/websocket";
 
       ws = new WebSocket(wsUrl);
 
+      // ----------------------------------------------------------
+      // CONEXIÓN ABIERTA
+      // ----------------------------------------------------------
+
       ws.onopen = () => {
-        console.log("WebSocket conectado");
+        console.log("Home Assistant WebSocket conectado");
       };
 
-      ws.onmessage = async (e) => {
+      // ----------------------------------------------------------
+      // MENSAJES DE HOME ASSISTANT
+      // ----------------------------------------------------------
+
+      ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
 
-          console.log("HA WebSocket:", msg);
+          // ------------------------------------------------------
+          // HOME ASSISTANT PIDE AUTENTICACIÓN
+          // ------------------------------------------------------
 
           if (msg.type === "auth_required") {
             ws.send(
@@ -104,64 +123,151 @@ function App() {
             );
           }
 
+          // ------------------------------------------------------
+          // AUTENTICACIÓN CORRECTA
+          // ------------------------------------------------------
+
           if (msg.type === "auth_ok") {
-            console.log("Autenticación Home Assistant correcta");
+            console.log("Autenticación correcta");
 
             if (alive) {
               setConnected(true);
-              setMessage("");
             }
 
+            // Pedimos todos los estados actuales
             ws.send(
               JSON.stringify({
                 id: 1,
                 type: "get_states"
               })
             );
+
+            // Nos suscribimos a todos los cambios de estado
+            ws.send(
+              JSON.stringify({
+                id: 2,
+                type: "subscribe_events",
+                event_type: "state_changed"
+              })
+            );
           }
 
-          if (msg.type === "auth_invalid") {
-            console.error("Token de Home Assistant inválido");
+          // ------------------------------------------------------
+          // ESTADOS INICIALES
+          // ------------------------------------------------------
 
-            if (alive) {
-              setConnected(false);
-              setMessage("Token de Home Assistant no válido");
-            }
-          }
-
-          if (msg.id === 1 && msg.success) {
+          if (
+            msg.id === 1 &&
+            msg.success &&
+            Array.isArray(msg.result)
+          ) {
             const map = Object.fromEntries(
-              msg.result.map((x) => [x.entity_id, x])
+              msg.result.map((entity) => [
+                entity.entity_id,
+                entity
+              ])
             );
 
             if (alive) {
               setStates(map);
             }
+
+            console.log(
+              "Estados iniciales recibidos:",
+              msg.result.length
+            );
+          }
+
+          // ------------------------------------------------------
+          // SUSCRIPCIÓN CORRECTA
+          // ------------------------------------------------------
+
+          if (
+            msg.id === 2 &&
+            msg.type === "result" &&
+            msg.success
+          ) {
+            console.log(
+              "Suscrito a cambios de estado"
+            );
+          }
+
+          // ------------------------------------------------------
+          // CAMBIO DE ESTADO EN TIEMPO REAL
+          // ------------------------------------------------------
+
+          if (
+            msg.type === "event" &&
+            msg.event?.event_type === "state_changed"
+          ) {
+            const newState =
+              msg.event.data?.new_state;
+
+            if (!newState) {
+              return;
+            }
+
+            if (alive) {
+              setStates((previousStates) => ({
+                ...previousStates,
+                [newState.entity_id]: newState
+              }));
+            }
+
+            console.log(
+              "Estado actualizado:",
+              newState.entity_id,
+              newState.state
+            );
           }
         } catch (error) {
-          console.error("Error procesando WebSocket:", error);
+          console.error(
+            "Error procesando mensaje WebSocket:",
+            error
+          );
         }
       };
 
+      // ----------------------------------------------------------
+      // WEBSOCKET CERRADO
+      // ----------------------------------------------------------
+
       ws.onclose = () => {
-        console.log("WebSocket cerrado");
+        console.log(
+          "Home Assistant WebSocket desconectado"
+        );
 
         if (alive) {
           setConnected(false);
         }
       };
 
+      // ----------------------------------------------------------
+      // ERROR WEBSOCKET
+      // ----------------------------------------------------------
+
       ws.onerror = (error) => {
-        console.error("Error WebSocket:", error);
+        console.error(
+          "Error WebSocket:",
+          error
+        );
 
         if (alive) {
           setConnected(false);
         }
       };
     } catch (error) {
-      console.error("No se pudo crear WebSocket:", error);
+      console.error(
+        "No se pudo crear WebSocket:",
+        error
+      );
+
       setConnected(false);
     }
+
+    // ----------------------------------------------------------
+    // LIMPIEZA
+    // ----------------------------------------------------------
 
     return () => {
       alive = false;
@@ -172,63 +278,57 @@ function App() {
     };
   }, [url, token]);
 
-  const state = (id) => states[id]?.state;
+  // ============================================================
+  // FUNCIONES PARA LEER ESTADOS
+  // ============================================================
 
-  const attr = (id, key) =>
-    states[id]?.attributes?.[key];
+  const state = (entityId) => {
+    return states[entityId]?.state;
+  };
 
-  /*
-   * LLAMAR A SERVICIOS DE HOME ASSISTANT
-   */
-  async function callService(domain, service, entity_id) {
+  const attr = (entityId, key) => {
+    return states[entityId]?.attributes?.[key];
+  };
+
+  // ============================================================
+  // LLAMAR A UN SERVICIO DE HOME ASSISTANT
+  // ============================================================
+
+  async function callService(
+    domain,
+    service,
+    entity_id
+  ) {
     if (!token) {
-      setMessage("Añade tu token en ⚙️ Ajustes.");
+      setMessage(
+        "Añade tu token en ⚙️ Ajustes."
+      );
+
       return;
     }
 
-    const endpoint =
-      `${url}/api/services/${domain}/${service}`;
-
-    console.log("Llamando a Home Assistant:", {
-      endpoint,
-      domain,
-      service,
-      entity_id
-    });
-
     try {
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          entity_id
-        })
-      });
+      const response = await fetch(
+        `${url}/api/services/${domain}/${service}`,
+        {
+          method: "POST",
 
-      /*
-       * CAMBIO IMPORTANTE:
-       * Ahora mostramos el error real que devuelve HA.
-       */
-      if (!r.ok) {
-        const errorText = await r.text();
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
 
-        console.error("Home Assistant respondió con error:", {
-          status: r.status,
-          statusText: r.statusText,
-          body: errorText
-        });
+          body: JSON.stringify({
+            entity_id
+          })
+        }
+      );
 
+      if (!response.ok) {
         throw new Error(
-          `${r.status}: ${errorText || r.statusText}`
+          `HTTP ${response.status}`
         );
       }
-
-      const result = await r.json();
-
-      console.log("Respuesta de Home Assistant:", result);
 
       setMessage("Acción enviada");
 
@@ -237,19 +337,23 @@ function App() {
       }, 1600);
     } catch (error) {
       console.error(
-        "Error llamando a Home Assistant:",
+        "Error ejecutando acción:",
         error
       );
 
       setMessage(
-        `Error: ${error.message || "Error desconocido"}`
+        "No se pudo conectar con Home Assistant"
       );
 
       setTimeout(() => {
         setMessage("");
-      }, 5000);
+      }, 2500);
     }
   }
+
+  // ============================================================
+  // ESTADOS DE LA CASA
+  // ============================================================
 
   const lampOn =
     state(ENTITIES.lamp) === "on";
@@ -258,27 +362,27 @@ function App() {
     state(ENTITIES.freezer) === "on";
 
   const power =
-    attr(
-      ENTITIES.power,
-      "unit_of_measurement"
-    )
-      ? state(ENTITIES.power)
-      : state(ENTITIES.power);
+    state(ENTITIES.power);
 
-  const energy = Number(
-    state(ENTITIES.energy)
-  );
+  const energy =
+    Number(state(ENTITIES.energy));
 
-  const price = Number(
-    config.price ?? DEFAULT_PRICE
-  );
+  const price =
+    Number(
+      config.price ?? DEFAULT_PRICE
+    );
 
-  const yesterdayKwh = Number(
-    config.yesterdayKwh ?? 0
-  );
+  const yesterdayKwh =
+    Number(
+      config.yesterdayKwh ?? 0
+    );
 
   const yesterdayCost =
     yesterdayKwh * price;
+
+  // ============================================================
+  // NAVEGACIÓN
+  // ============================================================
 
   const nav = [
     ["Domótica", House],
@@ -288,10 +392,21 @@ function App() {
     ["Ajustes", Settings]
   ];
 
+  // ============================================================
+  // INTERFAZ
+  // ============================================================
+
   return (
     <div className="app">
+
+      {/* ======================================================
+          SIDEBAR
+      ====================================================== */}
+
       <aside className="sidebar">
+
         <div className="brand">
+
           <div className="brand-icon">
             <House size={22} />
           </div>
@@ -300,6 +415,7 @@ function App() {
             <b>Mi Casa</b>
             <span>Dashboard</span>
           </div>
+
         </div>
 
         <nav>
@@ -311,7 +427,9 @@ function App() {
                   ? "nav active"
                   : "nav"
               }
-              onClick={() => setPage(name)}
+              onClick={() =>
+                setPage(name)
+              }
             >
               <Icon size={20} />
               <span>{name}</span>
@@ -320,9 +438,12 @@ function App() {
         </nav>
 
         <div className="sidebar-bottom">
+
           <button
             className="theme-btn"
-            onClick={() => setDark(!dark)}
+            onClick={() =>
+              setDark(!dark)
+            }
           >
             {dark ? (
               <Sun size={19} />
@@ -352,20 +473,32 @@ function App() {
               ? "Conectado"
               : "Sin conexión"}
           </div>
+
         </div>
       </aside>
 
+      {/* ======================================================
+          CONTENIDO PRINCIPAL
+      ====================================================== */}
+
       <main>
+
         <header>
+
           <div>
+
             <div className="eyebrow">
               MI CASA
             </div>
 
-            <h1>{page}</h1>
+            <h1>
+              {page}
+            </h1>
+
           </div>
 
           <div className="status-pill">
+
             {connected ? (
               <>
                 <Wifi size={15} />
@@ -377,8 +510,14 @@ function App() {
                 Configura HA
               </>
             )}
+
           </div>
+
         </header>
+
+        {/* ====================================================
+            MENSAJE
+        ==================================================== */}
 
         {message && (
           <div className="toast">
@@ -386,8 +525,15 @@ function App() {
           </div>
         )}
 
+        {/* ====================================================
+            DOMÓTICA
+        ==================================================== */}
+
         {page === "Domótica" && (
+
           <section className="grid">
+
+            {/* TEMPERATURA */}
 
             <Card
               title="Temperatura"
@@ -401,6 +547,8 @@ function App() {
               sub="Sin sensor todavía"
             />
 
+            {/* HUMEDAD */}
+
             <Card
               title="Humedad"
               icon={
@@ -413,7 +561,12 @@ function App() {
               sub="Sin sensor todavía"
             />
 
+            {/* =================================================
+                LÁMPARA
+            ================================================= */}
+
             <section className="card wide">
+
               <CardHead
                 icon={<Lightbulb />}
                 title="Lámpara salón"
@@ -425,6 +578,7 @@ function App() {
               />
 
               <div className="control-row">
+
                 <div
                   className={
                     lampOn
@@ -451,22 +605,32 @@ function App() {
                     )
                   }
                 >
+
                   <Power size={17} />
 
                   {lampOn
                     ? "Apagar"
                     : "Encender"}
+
                 </button>
+
               </div>
+
             </section>
 
+            {/* =================================================
+                TV
+            ================================================= */}
+
             <section className="card wide">
+
               <CardHead
                 icon={<Tv />}
                 title="TV salón"
               />
 
               <div className="button-grid">
+
                 <ActionButton
                   icon={<Film />}
                   text="Modo Cine"
@@ -515,10 +679,17 @@ function App() {
                     )
                   }
                 />
+
               </div>
+
             </section>
 
+            {/* =================================================
+                CONGELADOR
+            ================================================= */}
+
             <section className="card">
+
               <CardHead
                 icon={<Snowflake />}
                 title="Congelador"
@@ -531,6 +702,7 @@ function App() {
                     : "big-status"
                 }
               >
+
                 {freezerOpen ? (
                   <>
                     <AlertTriangle />
@@ -542,16 +714,25 @@ function App() {
                     Cerrado
                   </>
                 )}
+
               </div>
 
               <p className="muted">
+
                 {freezerOpen
                   ? "La puerta está abierta"
                   : "Puerta cerrada correctamente"}
+
               </p>
+
             </section>
 
+            {/* =================================================
+                PERSIANAS
+            ================================================= */}
+
             <section className="card">
+
               <CardHead
                 icon={<Blinds />}
                 title="Persianas"
@@ -559,6 +740,7 @@ function App() {
               />
 
               <div className="blind">
+
                 <div>
                   <b>Salón</b>
                   <span>
@@ -567,6 +749,7 @@ function App() {
                 </div>
 
                 <div className="blind-buttons">
+
                   <button disabled>
                     ↑
                   </button>
@@ -578,10 +761,13 @@ function App() {
                   <button disabled>
                     ↓
                   </button>
+
                 </div>
+
               </div>
 
               <div className="blind">
+
                 <div>
                   <b>
                     Habitación principal
@@ -593,6 +779,7 @@ function App() {
                 </div>
 
                 <div className="blind-buttons">
+
                   <button disabled>
                     ↑
                   </button>
@@ -604,11 +791,19 @@ function App() {
                   <button disabled>
                     ↓
                   </button>
+
                 </div>
+
               </div>
+
             </section>
 
+            {/* =================================================
+                CONSUMO
+            ================================================= */}
+
             <section className="card wide">
+
               <CardHead
                 icon={<Zap />}
                 title="Consumo lámpara"
@@ -618,6 +813,7 @@ function App() {
               />
 
               <div className="stats">
+
                 <Stat
                   label="Ahora"
                   value={
@@ -661,19 +857,57 @@ function App() {
                       : "—"
                   }
                 />
+
               </div>
 
               <div className="mini-chart">
-                <span style={{ height: "28%" }} />
-                <span style={{ height: "44%" }} />
-                <span style={{ height: "35%" }} />
-                <span style={{ height: "65%" }} />
-                <span style={{ height: "48%" }} />
-                <span style={{ height: "30%" }} />
-                <span style={{ height: "52%" }} />
+
+                <span
+                  style={{
+                    height: "28%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "44%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "35%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "65%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "48%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "30%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "52%"
+                  }}
+                />
+
               </div>
 
               <div className="chart-labels">
+
                 <span>L</span>
                 <span>M</span>
                 <span>X</span>
@@ -681,16 +915,23 @@ function App() {
                 <span>V</span>
                 <span>S</span>
                 <span>D</span>
+
               </div>
 
               <p className="hint">
                 El histórico de ayer se añadirá
-                usando las estadísticas de Home
-                Assistant.
+                usando las estadísticas de
+                Home Assistant.
               </p>
+
             </section>
+
           </section>
         )}
+
+        {/* ====================================================
+            TAREAS
+        ==================================================== */}
 
         {page === "Tareas" && (
           <Placeholder
@@ -700,6 +941,10 @@ function App() {
           />
         )}
 
+        {/* ====================================================
+            COMPRA
+        ==================================================== */}
+
         {page === "Compra" && (
           <Placeholder
             icon={<ShoppingCart />}
@@ -707,6 +952,10 @@ function App() {
             text="Preparado para integrar tu lista de compra de Home Assistant."
           />
         )}
+
+        {/* ====================================================
+            CALENDARIO
+        ==================================================== */}
 
         {page === "Calendario" && (
           <Placeholder
@@ -716,16 +965,26 @@ function App() {
           />
         )}
 
+        {/* ====================================================
+            AJUSTES
+        ==================================================== */}
+
         {page === "Ajustes" && (
           <SettingsPage
             config={config}
             setConfig={setConfig}
           />
         )}
+
       </main>
+
     </div>
   );
 }
+
+// ============================================================
+// COMPONENTE CARD
+// ============================================================
 
 function Card({
   title,
@@ -736,6 +995,7 @@ function Card({
 }) {
   return (
     <section className="card">
+
       <CardHead
         icon={icon}
         title={title}
@@ -754,9 +1014,14 @@ function Card({
       <p className="muted">
         {sub}
       </p>
+
     </section>
   );
 }
+
+// ============================================================
+// CABECERA DE CARD
+// ============================================================
 
 function CardHead({
   icon,
@@ -765,9 +1030,15 @@ function CardHead({
 }) {
   return (
     <div className="card-head">
+
       <div className="card-title">
+
         {icon}
-        <b>{title}</b>
+
+        <b>
+          {title}
+        </b>
+
       </div>
 
       {right && (
@@ -775,9 +1046,14 @@ function CardHead({
           {right}
         </span>
       )}
+
     </div>
   );
 }
+
+// ============================================================
+// BOTÓN DE ACCIÓN
+// ============================================================
 
 function ActionButton({
   icon,
@@ -794,14 +1070,22 @@ function ActionButton({
       }
       onClick={on}
     >
+
       {icon}
 
-      <span>{text}</span>
+      <span>
+        {text}
+      </span>
 
       <ChevronRight size={17} />
+
     </button>
   );
 }
+
+// ============================================================
+// ESTADÍSTICA
+// ============================================================
 
 function Stat({
   label,
@@ -809,11 +1093,22 @@ function Stat({
 }) {
   return (
     <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
+
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+
     </div>
   );
 }
+
+// ============================================================
+// PÁGINA VACÍA
+// ============================================================
 
 function Placeholder({
   icon,
@@ -822,16 +1117,26 @@ function Placeholder({
 }) {
   return (
     <section className="empty-page">
+
       <div className="empty-icon">
         {icon}
       </div>
 
-      <h2>{title}</h2>
+      <h2>
+        {title}
+      </h2>
 
-      <p>{text}</p>
+      <p>
+        {text}
+      </p>
+
     </section>
   );
 }
+
+// ============================================================
+// AJUSTES
+// ============================================================
 
 function SettingsPage({
   config,
@@ -855,7 +1160,7 @@ function SettingsPage({
     );
 
   function save() {
-    const c = {
+    const newConfig = {
       url,
       token,
       price: Number(price),
@@ -865,19 +1170,18 @@ function SettingsPage({
 
     localStorage.setItem(
       "casa_config",
-      JSON.stringify(c)
+      JSON.stringify(newConfig)
     );
 
-    setConfig(c);
-
-    alert(
-      "Configuración guardada"
-    );
+    setConfig(newConfig);
   }
 
   return (
     <section className="settings card">
-      <h2>Configuración</h2>
+
+      <h2>
+        Configuración
+      </h2>
 
       <p className="muted">
         Los datos se guardan localmente
@@ -885,6 +1189,7 @@ function SettingsPage({
       </p>
 
       <label>
+
         URL de Home Assistant
 
         <input
@@ -894,9 +1199,11 @@ function SettingsPage({
           }
           placeholder={DEFAULT_URL}
         />
+
       </label>
 
       <label>
+
         Token de acceso
 
         <input
@@ -907,9 +1214,11 @@ function SettingsPage({
           }
           placeholder="Pega aquí tu token, sin compartirlo"
         />
+
       </label>
 
       <label>
+
         Precio de energía (€/kWh)
 
         <input
@@ -920,9 +1229,11 @@ function SettingsPage({
             setPrice(e.target.value)
           }
         />
+
       </label>
 
       <label>
+
         Consumo de ayer (kWh)
 
         <input
@@ -934,6 +1245,7 @@ function SettingsPage({
           }
           placeholder="Se automatizará en la siguiente versión"
         />
+
       </label>
 
       <button
@@ -944,19 +1256,28 @@ function SettingsPage({
       </button>
 
       <div className="security">
+
         <Lock size={17} />
 
         <span>
           No incluyas tu token en mensajes
-          ni lo publiques. Esta V1 lo
-          guarda en el almacenamiento
-          local del navegador.
+          ni lo publiques. Esta V1 lo guarda
+          en el almacenamiento local del
+          navegador.
         </span>
+
       </div>
+
     </section>
   );
 }
 
+// ============================================================
+// ARRANQUE DE REACT
+// ============================================================
+
 createRoot(
   document.getElementById("root")
-).render(<App />);
+).render(
+  <App />
+);
