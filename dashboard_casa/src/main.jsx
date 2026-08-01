@@ -71,21 +71,6 @@ function App() {
 
   /*
    * CONEXIÓN EN TIEMPO REAL CON HOME ASSISTANT
-   *
-   * Aquí hacemos dos cosas:
-   *
-   * 1. get_states al conectar para conocer el estado inicial.
-   *
-   * 2. subscribe_events para recibir automáticamente cualquier
-   *    cambio de estado de las entidades.
-   *
-   * Por ejemplo:
-   *
-   * congelador cerrado -> off
-   * congelador abierto  -> on
-   *
-   * Si lo abres/cierra físicamente, HA manda el cambio
-   * y React actualiza el dashboard inmediatamente.
    */
   useEffect(() => {
     if (!token) {
@@ -145,7 +130,6 @@ function App() {
             );
 
             /*
-             * MUY IMPORTANTE:
              * Nos suscribimos a los cambios de estado.
              */
             ws.send(
@@ -178,7 +162,7 @@ function App() {
           }
 
           /*
-           * SUSCRIPCIÓN A CAMBIOS CORRECTA
+           * SUSCRIPCIÓN CORRECTA
            */
           if (msg.id === 2 && msg.success) {
             console.log(
@@ -189,12 +173,6 @@ function App() {
 
           /*
            * CAMBIO DE ESTADO EN TIEMPO REAL
-           *
-           * Cada vez que cualquier entidad cambia,
-           * Home Assistant envía:
-           *
-           * event.data.entity_id
-           * event.data.new_state
            */
           if (
             msg.type === "event" &&
@@ -214,17 +192,11 @@ function App() {
               return;
             }
 
-            /*
-             * Actualizamos solamente la entidad que ha cambiado.
-             */
             setStates((previous) => ({
               ...previous,
               [entityId]: newState
             }));
 
-            /*
-             * Para depuración:
-             */
             console.log(
               "Estado actualizado:",
               entityId,
@@ -264,7 +236,7 @@ function App() {
     }
 
     /*
-     * LIMPIEZA AL SALIR / CAMBIAR CONFIGURACIÓN
+     * LIMPIEZA
      */
     return () => {
       alive = false;
@@ -276,21 +248,21 @@ function App() {
   }, [url, token]);
 
   /*
-   * OBTENER ESTADO DE UNA ENTIDAD
+   * OBTENER ESTADO
    */
   const state = (entityId) => {
     return states[entityId]?.state;
   };
 
   /*
-   * OBTENER ATRIBUTO DE UNA ENTIDAD
+   * OBTENER ATRIBUTO
    */
   const attr = (entityId, key) => {
     return states[entityId]?.attributes?.[key];
   };
 
   /*
-   * LLAMAR A UN SERVICIO DE HOME ASSISTANT
+   * LLAMAR A HOME ASSISTANT
    */
   async function callService(
     domain,
@@ -354,8 +326,6 @@ function App() {
 
   /*
    * ESTADO CONGELADOR
-   *
-   * En un binary_sensor de contacto:
    *
    * on  = abierto
    * off = cerrado
@@ -559,11 +529,6 @@ function App() {
               <CardHead
                 icon={<Lightbulb />}
                 title="Lámpara salón"
-                right={
-                  lampOn
-                    ? "Encendida"
-                    : "Apagada"
-                }
               />
 
               <div className="control-row">
@@ -656,7 +621,7 @@ function App() {
                 />
 
                 <ActionButton
-                  icon={<Tv />}
+                  icon={<NetflixIcon />}
                   text="Netflix"
                   on={() =>
                     callService(
@@ -678,11 +643,6 @@ function App() {
               <CardHead
                 icon={<Snowflake />}
                 title="Congelador"
-                right={
-                  freezerOpen
-                    ? "Abierto"
-                    : "Cerrado"
-                }
               />
 
               <div
@@ -737,6 +697,7 @@ function App() {
                 </div>
 
                 <div className="blind-buttons">
+
                   <button disabled>
                     ↑
                   </button>
@@ -748,6 +709,7 @@ function App() {
                   <button disabled>
                     ↓
                   </button>
+
                 </div>
 
               </div>
@@ -755,6 +717,7 @@ function App() {
               <div className="blind">
 
                 <div>
+
                   <b>
                     Habitación principal
                   </b>
@@ -762,6 +725,7 @@ function App() {
                   <span>
                     Sin entidad todavía
                   </span>
+
                 </div>
 
                 <div className="blind-buttons">
@@ -920,6 +884,44 @@ function App() {
       </main>
 
     </div>
+  );
+}
+
+
+/*
+ * ICONO NETFLIX
+ *
+ * Lo hacemos directamente en SVG para no
+ * instalar ninguna librería adicional.
+ */
+
+function NetflixIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M6 3v18"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+
+      <path
+        d="M6 3l12 18"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+
+      <path
+        d="M18 3v18"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+    </svg>
   );
 }
 
