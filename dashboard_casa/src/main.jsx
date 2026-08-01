@@ -1,3 +1,4 @@
+```jsx
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -47,29 +48,49 @@ const ENTITIES = {
 
 const ICON_BG = {
   netflix: { background: "#e50914" },
-  hbo: { background: "linear-gradient(135deg,#7b2ff7,#1a0b2e)" },
-  prime: { background: "linear-gradient(135deg,#00a8e1,#00415f)" },
-  movistar: { background: "linear-gradient(135deg,#0193f4,#014a8f)" },
-  maxplayer: { background: "linear-gradient(135deg,#5b5b66,#232329)" },
-  cine: { background: "linear-gradient(135deg,#0af0ff,#0a6fbf)" },
-  tvon: { background: "linear-gradient(135deg,#34e5b9,#0a8f6e)" },
-  tvoff: { background: "linear-gradient(135deg,#ff6b5e,#8f1f16)" }
+  hbo: {
+    background:
+      "linear-gradient(135deg,#7b2ff7,#1a0b2e)"
+  },
+  prime: {
+    background:
+      "linear-gradient(135deg,#00a8e1,#00415f)"
+  },
+  movistar: {
+    background:
+      "linear-gradient(135deg,#0193f4,#014a8f)"
+  },
+  maxplayer: {
+    background:
+      "linear-gradient(135deg,#5b5b66,#232329)"
+  },
+  cine: {
+    background:
+      "linear-gradient(135deg,#0af0ff,#0a6fbf)"
+  },
+  tvon: {
+    background:
+      "linear-gradient(135deg,#34e5b9,#0a8f6e)"
+  },
+  tvoff: {
+    background:
+      "linear-gradient(135deg,#ff6b5e,#8f1f16)"
+  }
 };
 
-// Slugs de la librería pública "simple-icons" (logos oficiales de marca).
-// Si algún logo no existe con ese nombre, el componente cae solo en la letra.
 const ICON_SLUGS = {
   netflix: "netflix",
   hbo: "hbomax",
   prime: "primevideo",
   movistar: "movistarplus"
-  // cine, tvon, tvoff y maxplayer no tienen app real -> sin slug
 };
 
 function loadConfig() {
   try {
     return {
-      ...JSON.parse(localStorage.getItem("casa_config") || "{}")
+      ...JSON.parse(
+        localStorage.getItem("casa_config") || "{}"
+      )
     };
   } catch {
     return {};
@@ -77,11 +98,19 @@ function loadConfig() {
 }
 
 function formatElapsed(ms) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const totalSeconds = Math.max(
+    0,
+    Math.floor(ms / 1000)
+  );
+
   const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
+  const m = Math.floor(
+    (totalSeconds % 3600) / 60
+  );
   const s = totalSeconds % 60;
-  const pad = (n) => String(n).padStart(2, "0");
+
+  const pad = (n) =>
+    String(n).padStart(2, "0");
 
   return h > 0
     ? `${pad(h)}:${pad(m)}:${pad(s)}`
@@ -89,24 +118,45 @@ function formatElapsed(ms) {
 }
 
 function App() {
-  const [config, setConfig] = useState(loadConfig());
-  const [page, setPage] = useState("Domótica");
+  const [config, setConfig] = useState(
+    loadConfig()
+  );
+
+  const [page, setPage] =
+    useState("Domótica");
+
   const [dark, setDark] = useState(
     localStorage.getItem("casa_dark") === "1"
   );
-  const [connected, setConnected] = useState(false);
+
+  const [connected, setConnected] =
+    useState(false);
+
   const [states, setStates] = useState({});
   const [message, setMessage] = useState("");
 
-  const [freezerOpenSince, setFreezerOpenSince] = useState(null);
-  const [nowTick, setNowTick] = useState(Date.now());
+  const [
+    freezerOpenSince,
+    setFreezerOpenSince
+  ] = useState(null);
 
-  const url = config.url || DEFAULT_URL;
-  const token = config.token || "";
+  const [nowTick, setNowTick] =
+    useState(Date.now());
+
+  const url =
+    config.url || DEFAULT_URL;
+
+  const token =
+    config.token || "";
 
   useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("casa_dark", dark ? "1" : "0");
+    document.documentElement.dataset.theme =
+      dark ? "dark" : "light";
+
+    localStorage.setItem(
+      "casa_dark",
+      dark ? "1" : "0"
+    );
   }, [dark]);
 
   useEffect(() => {
@@ -120,29 +170,43 @@ function App() {
     let alive = true;
 
     try {
-      const wsUrl = url.replace(/^http/, "ws") + "/api/websocket";
+      const wsUrl =
+        url.replace(/^http/, "ws") +
+        "/api/websocket";
+
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log("WebSocket conectado");
+        console.log(
+          "WebSocket conectado"
+        );
       };
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
+          const msg =
+            JSON.parse(event.data);
 
-          if (msg.type === "auth_required") {
+          if (
+            msg.type ===
+            "auth_required"
+          ) {
             ws.send(
               JSON.stringify({
                 type: "auth",
                 access_token: token
               })
             );
+
             return;
           }
 
-          if (msg.type === "auth_ok") {
-            console.log("Home Assistant autenticado");
+          if (
+            msg.type === "auth_ok"
+          ) {
+            console.log(
+              "Home Assistant autenticado"
+            );
 
             if (alive) {
               setConnected(true);
@@ -159,20 +223,27 @@ function App() {
               JSON.stringify({
                 id: 2,
                 type: "subscribe_events",
-                event_type: "state_changed"
+                event_type:
+                  "state_changed"
               })
             );
 
             return;
           }
 
-          if (msg.id === 1 && msg.success) {
-            const map = Object.fromEntries(
-              msg.result.map((entity) => [
-                entity.entity_id,
-                entity
-              ])
-            );
+          if (
+            msg.id === 1 &&
+            msg.success
+          ) {
+            const map =
+              Object.fromEntries(
+                msg.result.map(
+                  (entity) => [
+                    entity.entity_id,
+                    entity
+                  ]
+                )
+              );
 
             if (alive) {
               setStates(map);
@@ -181,38 +252,52 @@ function App() {
             return;
           }
 
-          if (msg.id === 2 && msg.success) {
-            console.log("Suscripción a cambios activa");
+          if (
+            msg.id === 2 &&
+            msg.success
+          ) {
+            console.log(
+              "Suscripción a cambios activa"
+            );
+
             return;
           }
 
           if (
             msg.type === "event" &&
             msg.event &&
-            msg.event.event_type === "state_changed"
+            msg.event.event_type ===
+              "state_changed"
           ) {
-            const eventData = msg.event.data;
+            const eventData =
+              msg.event.data;
 
-            if (!eventData || !eventData.entity_id) {
+            if (
+              !eventData ||
+              !eventData.entity_id
+            ) {
               return;
             }
 
-            const entityId = eventData.entity_id;
-            const newState = eventData.new_state;
+            const entityId =
+              eventData.entity_id;
 
-            if (!newState || !alive) {
+            const newState =
+              eventData.new_state;
+
+            if (
+              !newState ||
+              !alive
+            ) {
               return;
             }
 
-            setStates((previous) => ({
-              ...previous,
-              [entityId]: newState
-            }));
-
-            console.log(
-              "Estado actualizado:",
-              entityId,
-              newState.state
+            setStates(
+              (previous) => ({
+                ...previous,
+                [entityId]:
+                  newState
+              })
             );
           }
         } catch (error) {
@@ -224,7 +309,9 @@ function App() {
       };
 
       ws.onclose = () => {
-        console.log("WebSocket cerrado");
+        console.log(
+          "WebSocket cerrado"
+        );
 
         if (alive) {
           setConnected(false);
@@ -232,7 +319,10 @@ function App() {
       };
 
       ws.onerror = (error) => {
-        console.error("Error WebSocket:", error);
+        console.error(
+          "Error WebSocket:",
+          error
+        );
 
         if (alive) {
           setConnected(false);
@@ -256,18 +346,21 @@ function App() {
     };
   }, [url, token]);
 
-  const state = (entityId) => {
-    return states[entityId]?.state;
-  };
+  const state = (entityId) =>
+    states[entityId]?.state;
 
-  const lampOn = state(ENTITIES.lamp) === "on";
+  const lampOn =
+    state(ENTITIES.lamp) === "on";
 
   const freezerOpen =
     state(ENTITIES.freezer) === "on";
 
-  const power = state(ENTITIES.power);
+  const power =
+    state(ENTITIES.power);
 
-  const energy = Number(state(ENTITIES.energy));
+  const energy = Number(
+    state(ENTITIES.energy)
+  );
 
   const price = Number(
     config.price ?? DEFAULT_PRICE
@@ -277,13 +370,15 @@ function App() {
     config.yesterdayKwh ?? 0
   );
 
-  const yesterdayCost = yesterdayKwh * price;
+  const yesterdayCost =
+    yesterdayKwh * price;
 
-  // Cronómetro del congelador: guarda el momento en que se abrió
-  // y lo resetea en cuanto se detecta que está cerrado.
   useEffect(() => {
     if (freezerOpen) {
-      setFreezerOpenSince((previous) => previous ?? Date.now());
+      setFreezerOpenSince(
+        (previous) =>
+          previous ?? Date.now()
+      );
     } else {
       setFreezerOpenSince(null);
     }
@@ -298,12 +393,15 @@ function App() {
       setNowTick(Date.now());
     }, 1000);
 
-    return () => clearInterval(id);
+    return () =>
+      clearInterval(id);
   }, [freezerOpen]);
 
-  const freezerElapsedMs = freezerOpenSince
-    ? nowTick - freezerOpenSince
-    : 0;
+  const freezerElapsedMs =
+    freezerOpenSince
+      ? nowTick -
+        freezerOpenSince
+      : 0;
 
   async function callService(
     domain,
@@ -319,25 +417,32 @@ function App() {
     }
 
     try {
-      const response = await fetch(
-        `${url}/api/services/${domain}/${service}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            entity_id
-          })
-        }
-      );
+      const response =
+        await fetch(
+          `${url}/api/services/${domain}/${service}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+              "Content-Type":
+                "application/json"
+            },
+            body: JSON.stringify({
+              entity_id
+            })
+          }
+        );
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(
+          `HTTP ${response.status}`
+        );
       }
 
-      setMessage("Acción enviada");
+      setMessage(
+        "Acción enviada"
+      );
 
       setTimeout(() => {
         setMessage("");
@@ -381,26 +486,32 @@ function App() {
         </div>
 
         <nav>
-          {nav.map(([name, Icon]) => (
-            <button
-              key={name}
-              className={
-                page === name
-                  ? "nav active"
-                  : "nav"
-              }
-              onClick={() => setPage(name)}
-            >
-              <Icon size={20} />
-              <span>{name}</span>
-            </button>
-          ))}
+          {nav.map(
+            ([name, Icon]) => (
+              <button
+                key={name}
+                className={
+                  page === name
+                    ? "nav active"
+                    : "nav"
+                }
+                onClick={() =>
+                  setPage(name)
+                }
+              >
+                <Icon size={20} />
+                <span>{name}</span>
+              </button>
+            )
+          )}
         </nav>
 
         <div className="sidebar-bottom">
           <button
             className="theme-btn"
-            onClick={() => setDark(!dark)}
+            onClick={() =>
+              setDark(!dark)
+            }
           >
             {dark ? (
               <Sun size={19} />
@@ -408,7 +519,9 @@ function App() {
               <Moon size={19} />
             )}
 
-            {dark ? "Modo claro" : "Modo oscuro"}
+            {dark
+              ? "Modo claro"
+              : "Modo oscuro"}
           </button>
 
           <div
@@ -434,7 +547,10 @@ function App() {
       <main>
         <header>
           <div>
-            <div className="eyebrow">MI CASA</div>
+            <div className="eyebrow">
+              MI CASA
+            </div>
+
             <h1>{page}</h1>
           </div>
 
@@ -462,14 +578,12 @@ function App() {
         {page === "Domótica" && (
           <section className="grid">
 
-            {/* =========================
-                FILA 1: cuatro tarjetas
-            ========================= */}
-
             <Card
               title="Temperatura"
               icon={
-                <span className="emoji">🌡️</span>
+                <span className="emoji">
+                  🌡️
+                </span>
               }
               muted
               value="—"
@@ -479,7 +593,9 @@ function App() {
             <Card
               title="Humedad"
               icon={
-                <span className="emoji">💧</span>
+                <span className="emoji">
+                  💧
+                </span>
               }
               muted
               value="—"
@@ -488,7 +604,9 @@ function App() {
 
             <section className="card">
               <CardHead
-                icon={<Lightbulb />}
+                icon={
+                  <Lightbulb />
+                }
                 title="Lámpara"
               />
 
@@ -524,17 +642,34 @@ function App() {
                   }
                 >
                   <Power size={14} />
+
                   <span>
-                    {lampOn ? "Apagar" : "Encender"}
+                    {lampOn
+                      ? "Apagar"
+                      : "Encender"}
                   </span>
                 </button>
               </div>
             </section>
 
-            <section className="card">
+            {/* CONGELADOR */}
+            <section
+              className={
+                freezerOpen
+                  ? "card freezer-card open"
+                  : "card freezer-card"
+              }
+            >
               <CardHead
-                icon={<Snowflake />}
+                icon={
+                  <Snowflake />
+                }
                 title="Congelador"
+                right={
+                  freezerOpen
+                    ? "ATENCIÓN"
+                    : undefined
+                }
               />
 
               <div
@@ -558,15 +693,20 @@ function App() {
               </div>
 
               {freezerOpen && (
-                <div className="freezer-timer">
-                  {formatElapsed(freezerElapsedMs)}
-                </div>
+                <>
+                  <div className="freezer-alert">
+                    <span className="alert-pulse" />
+                    Puerta abierta
+                  </div>
+
+                  <div className="freezer-timer">
+                    {formatElapsed(
+                      freezerElapsedMs
+                    )}
+                  </div>
+                </>
               )}
             </section>
-
-            {/* =========================
-                FILA 2: TV SALÓN (ancho completo)
-            ========================= */}
 
             <section className="card wide">
               <CardHead
@@ -580,10 +720,17 @@ function App() {
                   className="app-tv cine"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.cine}
+                      slug={
+                        ICON_SLUGS.cine
+                      }
                       name="Modo Cine"
                       bg={ICON_BG.cine}
-                      fallback={<Film size={20} color="#fff" />}
+                      fallback={
+                        <Film
+                          size={20}
+                          color="#fff"
+                        />
+                      }
                     />
                   }
                   text="Modo Cine"
@@ -600,10 +747,17 @@ function App() {
                   className="app-tv tvon"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.tvon}
+                      slug={
+                        ICON_SLUGS.tvon
+                      }
                       name="TV Encender"
                       bg={ICON_BG.tvon}
-                      fallback={<Power size={20} color="#fff" />}
+                      fallback={
+                        <Power
+                          size={20}
+                          color="#fff"
+                        />
+                      }
                     />
                   }
                   text="TV Encender"
@@ -620,10 +774,17 @@ function App() {
                   className="app-tv tvoff"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.tvoff}
+                      slug={
+                        ICON_SLUGS.tvoff
+                      }
                       name="TV Apagar"
                       bg={ICON_BG.tvoff}
-                      fallback={<Power size={20} color="#fff" />}
+                      fallback={
+                        <Power
+                          size={20}
+                          color="#fff"
+                        />
+                      }
                     />
                   }
                   text="TV Apagar"
@@ -636,15 +797,17 @@ function App() {
                   }
                 />
 
-                {/* NETFLIX */}
-
                 <ActionButton
                   className="app-tv netflix"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.netflix}
+                      slug={
+                        ICON_SLUGS.netflix
+                      }
                       name="Netflix"
-                      bg={ICON_BG.netflix}
+                      bg={
+                        ICON_BG.netflix
+                      }
                       fallback="N"
                     />
                   }
@@ -658,13 +821,13 @@ function App() {
                   }
                 />
 
-                {/* HBO MAX */}
-
                 <ActionButton
                   className="app-tv hbo"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.hbo}
+                      slug={
+                        ICON_SLUGS.hbo
+                      }
                       name="HBO Max"
                       bg={ICON_BG.hbo}
                       fallback="H"
@@ -680,13 +843,13 @@ function App() {
                   }
                 />
 
-                {/* PRIME VIDEO */}
-
                 <ActionButton
                   className="app-tv prime"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.prime}
+                      slug={
+                        ICON_SLUGS.prime
+                      }
                       name="Prime Video"
                       bg={ICON_BG.prime}
                       fallback="P"
@@ -702,15 +865,17 @@ function App() {
                   }
                 />
 
-                {/* MOVISTAR HDMI */}
-
                 <ActionButton
                   className="app-tv movistar"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.movistar}
+                      slug={
+                        ICON_SLUGS.movistar
+                      }
                       name="Movistar HDMI"
-                      bg={ICON_BG.movistar}
+                      bg={
+                        ICON_BG.movistar
+                      }
                       fallback="M"
                     />
                   }
@@ -724,16 +889,23 @@ function App() {
                   }
                 />
 
-                {/* MAX PLAYER */}
-
                 <ActionButton
                   className="app-tv maxplayer"
                   icon={
                     <AppIcon
-                      slug={ICON_SLUGS.maxplayer}
+                      slug={
+                        ICON_SLUGS.maxplayer
+                      }
                       name="Max Player"
-                      bg={ICON_BG.maxplayer}
-                      fallback={<Tv size={20} color="#fff" />}
+                      bg={
+                        ICON_BG.maxplayer
+                      }
+                      fallback={
+                        <Tv
+                          size={20}
+                          color="#fff"
+                        />
+                      }
                     />
                   }
                   text="Max Player"
@@ -748,10 +920,6 @@ function App() {
 
               </div>
             </section>
-
-            {/* =========================
-                FILA 3: Persianas + Consumo
-            ========================= */}
 
             <section className="card half">
               <CardHead
@@ -769,9 +937,15 @@ function App() {
                 </div>
 
                 <div className="blind-buttons">
-                  <button disabled>↑</button>
-                  <button disabled>■</button>
-                  <button disabled>↓</button>
+                  <button disabled>
+                    ↑
+                  </button>
+                  <button disabled>
+                    ■
+                  </button>
+                  <button disabled>
+                    ↓
+                  </button>
                 </div>
               </div>
 
@@ -786,9 +960,15 @@ function App() {
                 </div>
 
                 <div className="blind-buttons">
-                  <button disabled>↑</button>
-                  <button disabled>■</button>
-                  <button disabled>↓</button>
+                  <button disabled>
+                    ↑
+                  </button>
+                  <button disabled>
+                    ■
+                  </button>
+                  <button disabled>
+                    ↓
+                  </button>
                 </div>
               </div>
             </section>
@@ -797,7 +977,9 @@ function App() {
               <CardHead
                 icon={<Zap />}
                 title="Consumo lámpara"
-                right={`${price.toFixed(3)} €/kWh`}
+                right={`${price.toFixed(
+                  3
+                )} €/kWh`}
               />
 
               <div className="stats">
@@ -813,8 +995,12 @@ function App() {
                 <Stat
                   label="Energía acumulada"
                   value={
-                    Number.isFinite(energy)
-                      ? `${energy.toFixed(2)} kWh`
+                    Number.isFinite(
+                      energy
+                    )
+                      ? `${energy.toFixed(
+                          2
+                        )} kWh`
                       : "—"
                   }
                 />
@@ -823,7 +1009,9 @@ function App() {
                   label="Ayer"
                   value={
                     yesterdayKwh
-                      ? `${yesterdayKwh.toFixed(2)} kWh`
+                      ? `${yesterdayKwh.toFixed(
+                          2
+                        )} kWh`
                       : "Configurar"
                   }
                 />
@@ -832,20 +1020,50 @@ function App() {
                   label="Coste ayer"
                   value={
                     yesterdayKwh
-                      ? `${yesterdayCost.toFixed(3)} €`
+                      ? `${yesterdayCost.toFixed(
+                          3
+                        )} €`
                       : "—"
                   }
                 />
               </div>
 
               <div className="mini-chart">
-                <span style={{ height: "28%" }} />
-                <span style={{ height: "44%" }} />
-                <span style={{ height: "35%" }} />
-                <span style={{ height: "65%" }} />
-                <span style={{ height: "48%" }} />
-                <span style={{ height: "30%" }} />
-                <span style={{ height: "52%" }} />
+                <span
+                  style={{
+                    height: "28%"
+                  }}
+                />
+                <span
+                  style={{
+                    height: "44%"
+                  }}
+                />
+                <span
+                  style={{
+                    height: "35%"
+                  }}
+                />
+                <span
+                  style={{
+                    height: "65%"
+                  }}
+                />
+                <span
+                  style={{
+                    height: "48%"
+                  }}
+                />
+                <span
+                  style={{
+                    height: "30%"
+                  }}
+                />
+                <span
+                  style={{
+                    height: "52%"
+                  }}
+                />
               </div>
 
               <div className="chart-labels">
@@ -859,15 +1077,12 @@ function App() {
               </div>
 
               <p className="hint">
-                El histórico de ayer se añadirá
-                usando las estadísticas de
-                Home Assistant.
+                El histórico de ayer se
+                añadirá usando las
+                estadísticas de Home
+                Assistant.
               </p>
             </section>
-
-            {/* =========================
-                FILA 4: Tareas + Calendario
-            ========================= */}
 
             <section className="card half">
               <CardHead
@@ -876,20 +1091,22 @@ function App() {
               />
 
               <p className="muted">
-                Próximamente aquí verás tus
-                tareas pendientes.
+                Próximamente aquí verás
+                tus tareas pendientes.
               </p>
             </section>
 
             <section className="card half">
               <CardHead
-                icon={<CalendarDays />}
+                icon={
+                  <CalendarDays />
+                }
                 title="Calendario"
               />
 
               <p className="muted">
-                Próximamente aquí verás tus
-                próximos eventos.
+                Próximamente aquí verás
+                tus próximos eventos.
               </p>
             </section>
 
@@ -906,7 +1123,9 @@ function App() {
 
         {page === "Compra" && (
           <Placeholder
-            icon={<ShoppingCart />}
+            icon={
+              <ShoppingCart />
+            }
             title="Lista de la compra"
             text="Preparado para integrar tu lista de compra de Home Assistant."
           />
@@ -914,7 +1133,9 @@ function App() {
 
         {page === "Calendario" && (
           <Placeholder
-            icon={<CalendarDays />}
+            icon={
+              <CalendarDays />
+            }
             title="Calendario"
             text="Preparado para integrar tus calendarios de Home Assistant."
           />
@@ -955,7 +1176,9 @@ function Card({
         {value}
       </div>
 
-      <p className="muted">{sub}</p>
+      <p className="muted">
+        {sub}
+      </p>
     </section>
   );
 }
@@ -981,13 +1204,17 @@ function CardHead({
   );
 }
 
-// Icono de app: intenta cargar el logo real (simple-icons).
-// Si no existe ese slug o falla la carga, muestra el "fallback"
-// (una letra o un icono de lucide) sobre el mismo fondo de color.
-function AppIcon({ slug, name, bg, fallback }) {
-  const [failed, setFailed] = useState(false);
+function AppIcon({
+  slug,
+  name,
+  bg,
+  fallback
+}) {
+  const [failed, setFailed] =
+    useState(false);
 
-  const showImage = Boolean(slug) && !failed;
+  const showImage =
+    Boolean(slug) && !failed;
 
   return (
     <div
@@ -1009,15 +1236,19 @@ function AppIcon({ slug, name, bg, fallback }) {
         <img
           src={`https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/${slug}.svg`}
           alt={name}
-          onError={() => setFailed(true)}
+          onError={() =>
+            setFailed(true)
+          }
           style={{
             width: 22,
             height: 22,
-            filter: "brightness(0) invert(1)",
+            filter:
+              "brightness(0) invert(1)",
             display: "block"
           }}
         />
-      ) : typeof fallback === "string" ? (
+      ) : typeof fallback ===
+        "string" ? (
         <span
           style={{
             color: "#fff",
@@ -1101,17 +1332,21 @@ function SettingsPage({
   config,
   setConfig
 }) {
-  const [url, setUrl] = useState(
-    config.url || DEFAULT_URL
-  );
+  const [url, setUrl] =
+    useState(
+      config.url || DEFAULT_URL
+    );
 
-  const [token, setToken] = useState(
-    config.token || ""
-  );
+  const [token, setToken] =
+    useState(
+      config.token || ""
+    );
 
-  const [price, setPrice] = useState(
-    config.price ?? DEFAULT_PRICE
-  );
+  const [price, setPrice] =
+    useState(
+      config.price ??
+        DEFAULT_PRICE
+    );
 
   const [yesterday, setYesterday] =
     useState(
@@ -1150,9 +1385,13 @@ function SettingsPage({
         <input
           value={url}
           onChange={(e) =>
-            setUrl(e.target.value)
+            setUrl(
+              e.target.value
+            )
           }
-          placeholder={DEFAULT_URL}
+          placeholder={
+            DEFAULT_URL
+          }
         />
       </label>
 
@@ -1163,7 +1402,9 @@ function SettingsPage({
           type="password"
           value={token}
           onChange={(e) =>
-            setToken(e.target.value)
+            setToken(
+              e.target.value
+            )
           }
           placeholder="Pega aquí tu token, sin compartirlo"
         />
@@ -1178,7 +1419,9 @@ function SettingsPage({
           step="0.001"
           value={price}
           onChange={(e) =>
-            setPrice(e.target.value)
+            setPrice(
+              e.target.value
+            )
           }
         />
       </label>
@@ -1192,7 +1435,9 @@ function SettingsPage({
           step="0.01"
           value={yesterday}
           onChange={(e) =>
-            setYesterday(e.target.value)
+            setYesterday(
+              e.target.value
+            )
           }
           placeholder="Se automatizará en la siguiente versión"
         />
@@ -1209,9 +1454,10 @@ function SettingsPage({
         <Lock size={17} />
 
         <span>
-          No incluyas tu token en mensajes
-          ni lo publiques. Esta V1 lo guarda
-          en el almacenamiento local del
+          No incluyas tu token en
+          mensajes ni lo publiques.
+          Esta V1 lo guarda en el
+          almacenamiento local del
           navegador.
         </span>
       </div>
@@ -1221,6 +1467,5 @@ function SettingsPage({
 
 createRoot(
   document.getElementById("root")
-).render(
-  <App />
-);
+).render(<App />);
+```
