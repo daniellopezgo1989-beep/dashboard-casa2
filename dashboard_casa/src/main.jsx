@@ -28,11 +28,19 @@ const DEFAULT_PRICE = 0.216;
 
 const ENTITIES = {
   lamp: "switch.lampara",
+
   movie: "script.modo_cine",
   tvOff: "script.tv_apagar",
   tvOn: "script.tv_encender",
+
   netflix: "script.tv_netflix",
+  hboMax: "script.tv_hbo_max",
+  primeVideo: "script.tv_prime_video",
+  movistarHdmi: "script.tv_movistar_hdmi",
+  maxPlayer: "script.tv_max_player",
+
   freezer: "binary_sensor.sensor_congelador_contact",
+
   power: "sensor.lampara_power",
   energy: "sensor.lampara_energy"
 };
@@ -40,7 +48,9 @@ const ENTITIES = {
 function loadConfig() {
   try {
     return {
-      ...JSON.parse(localStorage.getItem("casa_config") || "{}")
+      ...JSON.parse(
+        localStorage.getItem("casa_config") || "{}"
+      )
     };
   } catch {
     return {};
@@ -49,29 +59,41 @@ function loadConfig() {
 
 function App() {
   const [config, setConfig] = useState(loadConfig());
+
   const [page, setPage] = useState("Domótica");
+
   const [dark, setDark] = useState(
     localStorage.getItem("casa_dark") === "1"
   );
 
   const [connected, setConnected] = useState(false);
+
   const [states, setStates] = useState({});
+
   const [message, setMessage] = useState("");
 
   const url = config.url || DEFAULT_URL;
+
   const token = config.token || "";
 
   /*
    * TEMA
    */
+
   useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("casa_dark", dark ? "1" : "0");
+    document.documentElement.dataset.theme =
+      dark ? "dark" : "light";
+
+    localStorage.setItem(
+      "casa_dark",
+      dark ? "1" : "0"
+    );
   }, [dark]);
 
   /*
    * CONEXIÓN EN TIEMPO REAL CON HOME ASSISTANT
    */
+
   useEffect(() => {
     if (!token) {
       setConnected(false);
@@ -84,44 +106,61 @@ function App() {
 
     try {
       const wsUrl =
-        url.replace(/^http/, "ws") + "/api/websocket";
+        url.replace(/^http/, "ws") +
+        "/api/websocket";
 
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log("WebSocket conectado");
+        console.log(
+          "WebSocket conectado"
+        );
       };
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
+          const msg = JSON.parse(
+            event.data
+          );
 
           /*
-           * HOME ASSISTANT PIDE AUTENTICACIÓN
+           * AUTENTICACIÓN
            */
-          if (msg.type === "auth_required") {
+
+          if (
+            msg.type ===
+            "auth_required"
+          ) {
             ws.send(
               JSON.stringify({
                 type: "auth",
                 access_token: token
               })
             );
+
             return;
           }
 
           /*
            * AUTENTICACIÓN CORRECTA
            */
-          if (msg.type === "auth_ok") {
-            console.log("Home Assistant autenticado");
+
+          if (
+            msg.type ===
+            "auth_ok"
+          ) {
+            console.log(
+              "Home Assistant autenticado"
+            );
 
             if (alive) {
               setConnected(true);
             }
 
             /*
-             * Pedimos todos los estados actuales.
+             * ESTADOS INICIALES
              */
+
             ws.send(
               JSON.stringify({
                 id: 1,
@@ -130,13 +169,15 @@ function App() {
             );
 
             /*
-             * Nos suscribimos a los cambios de estado.
+             * SUSCRIPCIÓN A CAMBIOS
              */
+
             ws.send(
               JSON.stringify({
                 id: 2,
                 type: "subscribe_events",
-                event_type: "state_changed"
+                event_type:
+                  "state_changed"
               })
             );
 
@@ -146,13 +187,20 @@ function App() {
           /*
            * ESTADOS INICIALES
            */
-          if (msg.id === 1 && msg.success) {
-            const map = Object.fromEntries(
-              msg.result.map((entity) => [
-                entity.entity_id,
-                entity
-              ])
-            );
+
+          if (
+            msg.id === 1 &&
+            msg.success
+          ) {
+            const map =
+              Object.fromEntries(
+                msg.result.map(
+                  (entity) => [
+                    entity.entity_id,
+                    entity
+                  ]
+                )
+              );
 
             if (alive) {
               setStates(map);
@@ -164,38 +212,58 @@ function App() {
           /*
            * SUSCRIPCIÓN CORRECTA
            */
-          if (msg.id === 2 && msg.success) {
+
+          if (
+            msg.id === 2 &&
+            msg.success
+          ) {
             console.log(
-              "Suscripción a cambios de estado activa"
+              "Suscripción a cambios activa"
             );
+
             return;
           }
 
           /*
            * CAMBIO DE ESTADO EN TIEMPO REAL
            */
+
           if (
             msg.type === "event" &&
             msg.event &&
-            msg.event.event_type === "state_changed"
+            msg.event.event_type ===
+              "state_changed"
           ) {
-            const eventData = msg.event.data;
+            const eventData =
+              msg.event.data;
 
-            if (!eventData || !eventData.entity_id) {
+            if (
+              !eventData ||
+              !eventData.entity_id
+            ) {
               return;
             }
 
-            const entityId = eventData.entity_id;
-            const newState = eventData.new_state;
+            const entityId =
+              eventData.entity_id;
 
-            if (!newState || !alive) {
+            const newState =
+              eventData.new_state;
+
+            if (
+              !newState ||
+              !alive
+            ) {
               return;
             }
 
-            setStates((previous) => ({
-              ...previous,
-              [entityId]: newState
-            }));
+            setStates(
+              (previous) => ({
+                ...previous,
+                [entityId]:
+                  newState
+              })
+            );
 
             console.log(
               "Estado actualizado:",
@@ -205,14 +273,16 @@ function App() {
           }
         } catch (error) {
           console.error(
-            "Error procesando mensaje WebSocket:",
+            "Error procesando WebSocket:",
             error
           );
         }
       };
 
       ws.onclose = () => {
-        console.log("WebSocket cerrado");
+        console.log(
+          "WebSocket cerrado"
+        );
 
         if (alive) {
           setConnected(false);
@@ -220,7 +290,10 @@ function App() {
       };
 
       ws.onerror = (error) => {
-        console.error("Error WebSocket:", error);
+        console.error(
+          "Error WebSocket:",
+          error
+        );
 
         if (alive) {
           setConnected(false);
@@ -235,9 +308,6 @@ function App() {
       setConnected(false);
     }
 
-    /*
-     * LIMPIEZA
-     */
     return () => {
       alive = false;
 
@@ -250,6 +320,7 @@ function App() {
   /*
    * OBTENER ESTADO
    */
+
   const state = (entityId) => {
     return states[entityId]?.state;
   };
@@ -257,13 +328,19 @@ function App() {
   /*
    * OBTENER ATRIBUTO
    */
-  const attr = (entityId, key) => {
-    return states[entityId]?.attributes?.[key];
+
+  const attr = (
+    entityId,
+    key
+  ) => {
+    return states[entityId]
+      ?.attributes?.[key];
   };
 
   /*
-   * LLAMAR A HOME ASSISTANT
+   * EJECUTAR SERVICIO
    */
+
   async function callService(
     domain,
     service,
@@ -273,23 +350,30 @@ function App() {
       setMessage(
         "Añade tu token en ⚙️ Ajustes."
       );
+
       return;
     }
 
     try {
-      const response = await fetch(
-        `${url}/api/services/${domain}/${service}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            entity_id
-          })
-        }
-      );
+      const response =
+        await fetch(
+          `${url}/api/services/${domain}/${service}`,
+          {
+            method: "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+
+              "Content-Type":
+                "application/json"
+            },
+
+            body: JSON.stringify({
+              entity_id
+            })
+          }
+        );
 
       if (!response.ok) {
         throw new Error(
@@ -297,7 +381,9 @@ function App() {
         );
       }
 
-      setMessage("Acción enviada");
+      setMessage(
+        "Acción enviada"
+      );
 
       setTimeout(() => {
         setMessage("");
@@ -319,32 +405,41 @@ function App() {
   }
 
   /*
-   * ESTADO LÁMPARA
+   * LÁMPARA
    */
+
   const lampOn =
-    state(ENTITIES.lamp) === "on";
+    state(ENTITIES.lamp) ===
+    "on";
 
   /*
-   * ESTADO CONGELADOR
+   * CONGELADOR
    *
    * on  = abierto
    * off = cerrado
    */
+
   const freezerOpen =
-    state(ENTITIES.freezer) === "on";
+    state(
+      ENTITIES.freezer
+    ) === "on";
 
   /*
    * CONSUMO
    */
+
   const power =
     state(ENTITIES.power);
 
   const energy =
-    Number(state(ENTITIES.energy));
+    Number(
+      state(ENTITIES.energy)
+    );
 
   const price =
     Number(
-      config.price ?? DEFAULT_PRICE
+      config.price ??
+        DEFAULT_PRICE
     );
 
   const yesterdayKwh =
@@ -358,6 +453,7 @@ function App() {
   /*
    * NAVEGACIÓN
    */
+
   const nav = [
     ["Domótica", House],
     ["Tareas", CheckSquare],
@@ -381,29 +477,36 @@ function App() {
 
           <div>
             <b>Mi Casa</b>
-            <span>Dashboard</span>
+            <span>
+              Dashboard
+            </span>
           </div>
 
         </div>
 
         <nav>
 
-          {nav.map(([name, Icon]) => (
-            <button
-              key={name}
-              className={
-                page === name
-                  ? "nav active"
-                  : "nav"
-              }
-              onClick={() =>
-                setPage(name)
-              }
-            >
-              <Icon size={20} />
-              <span>{name}</span>
-            </button>
-          ))}
+          {nav.map(
+            ([name, Icon]) => (
+              <button
+                key={name}
+                className={
+                  page === name
+                    ? "nav active"
+                    : "nav"
+                }
+                onClick={() =>
+                  setPage(name)
+                }
+              >
+                <Icon size={20} />
+
+                <span>
+                  {name}
+                </span>
+              </button>
+            )
+          )}
 
         </nav>
 
@@ -415,6 +518,7 @@ function App() {
               setDark(!dark)
             }
           >
+
             {dark ? (
               <Sun size={19} />
             ) : (
@@ -424,6 +528,7 @@ function App() {
             {dark
               ? "Modo claro"
               : "Modo oscuro"}
+
           </button>
 
           <div
@@ -433,6 +538,7 @@ function App() {
                 : "connection"
             }
           >
+
             {connected ? (
               <Wifi size={16} />
             ) : (
@@ -442,13 +548,14 @@ function App() {
             {connected
               ? "Conectado"
               : "Sin conexión"}
+
           </div>
 
         </div>
 
       </aside>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* CONTENIDO */}
 
       <main>
 
@@ -460,7 +567,9 @@ function App() {
               MI CASA
             </div>
 
-            <h1>{page}</h1>
+            <h1>
+              {page}
+            </h1>
 
           </div>
 
@@ -488,7 +597,9 @@ function App() {
           </div>
         )}
 
-        {/* DOMÓTICA */}
+        {/* =========================
+            DOMÓTICA
+        ========================= */}
 
         {page === "Domótica" && (
 
@@ -522,7 +633,9 @@ function App() {
               sub="Sin sensor todavía"
             />
 
-            {/* LÁMPARA */}
+            {/* =========================
+                LÁMPARA
+            ========================= */}
 
             <section className="card wide">
 
@@ -572,7 +685,9 @@ function App() {
 
             </section>
 
-            {/* TV */}
+            {/* =========================
+                TV SALÓN
+            ========================= */}
 
             <section className="card wide">
 
@@ -583,8 +698,12 @@ function App() {
 
               <div className="button-grid">
 
+                {/* MODO CINE */}
+
                 <ActionButton
-                  icon={<Film />}
+                  icon={
+                    <Film />
+                  }
                   text="Modo Cine"
                   on={() =>
                     callService(
@@ -595,8 +714,12 @@ function App() {
                   }
                 />
 
+                {/* TV ENCENDER */}
+
                 <ActionButton
-                  icon={<Power />}
+                  icon={
+                    <Power />
+                  }
                   text="TV Encender"
                   on={() =>
                     callService(
@@ -607,8 +730,12 @@ function App() {
                   }
                 />
 
+                {/* TV APAGAR */}
+
                 <ActionButton
-                  icon={<Power />}
+                  icon={
+                    <Power />
+                  }
                   text="TV Apagar"
                   danger
                   on={() =>
@@ -620,8 +747,16 @@ function App() {
                   }
                 />
 
+                {/* NETFLIX */}
+
                 <ActionButton
-                  icon={<NetflixIcon />}
+                  icon={
+                    <img
+                      src="/apps/netflix.png"
+                      className="app-icon"
+                      alt="Netflix"
+                    />
+                  }
                   text="Netflix"
                   on={() =>
                     callService(
@@ -632,16 +767,100 @@ function App() {
                   }
                 />
 
+                {/* HBO MAX */}
+
+                <ActionButton
+                  icon={
+                    <img
+                      src="/apps/hbo-max.png"
+                      className="app-icon"
+                      alt="HBO Max"
+                    />
+                  }
+                  text="HBO Max"
+                  on={() =>
+                    callService(
+                      "script",
+                      "turn_on",
+                      ENTITIES.hboMax
+                    )
+                  }
+                />
+
+                {/* PRIME VIDEO */}
+
+                <ActionButton
+                  icon={
+                    <img
+                      src="/apps/prime-video.png"
+                      className="app-icon"
+                      alt="Prime Video"
+                    />
+                  }
+                  text="Prime Video"
+                  on={() =>
+                    callService(
+                      "script",
+                      "turn_on",
+                      ENTITIES.primeVideo
+                    )
+                  }
+                />
+
+                {/* MOVISTAR */}
+
+                <ActionButton
+                  icon={
+                    <img
+                      src="/apps/movistar.png"
+                      className="app-icon"
+                      alt="Movistar"
+                    />
+                  }
+                  text="Movistar HDMI"
+                  on={() =>
+                    callService(
+                      "script",
+                      "turn_on",
+                      ENTITIES.movistarHdmi
+                    )
+                  }
+                />
+
+                {/* MAX */}
+
+                <ActionButton
+                  icon={
+                    <img
+                      src="/apps/max.png"
+                      className="app-icon"
+                      alt="Max"
+                    />
+                  }
+                  text="Max"
+                  on={() =>
+                    callService(
+                      "script",
+                      "turn_on",
+                      ENTITIES.maxPlayer
+                    )
+                  }
+                />
+
               </div>
 
             </section>
 
-            {/* CONGELADOR */}
+            {/* =========================
+                CONGELADOR
+            ========================= */}
 
             <section className="card">
 
               <CardHead
-                icon={<Snowflake />}
+                icon={
+                  <Snowflake />
+                }
                 title="Congelador"
               />
 
@@ -677,12 +896,16 @@ function App() {
 
             </section>
 
-            {/* PERSIANAS */}
+            {/* =========================
+                PERSIANAS
+            ========================= */}
 
             <section className="card">
 
               <CardHead
-                icon={<Blinds />}
+                icon={
+                  <Blinds />
+                }
                 title="Persianas"
                 right="Próximamente"
               />
@@ -690,10 +913,15 @@ function App() {
               <div className="blind">
 
                 <div>
-                  <b>Salón</b>
+
+                  <b>
+                    Salón
+                  </b>
+
                   <span>
                     Sin entidad todavía
                   </span>
+
                 </div>
 
                 <div className="blind-buttons">
@@ -748,12 +976,16 @@ function App() {
 
             </section>
 
-            {/* CONSUMO */}
+            {/* =========================
+                CONSUMO
+            ========================= */}
 
             <section className="card wide">
 
               <CardHead
-                icon={<Zap />}
+                icon={
+                  <Zap />
+                }
                 title="Consumo lámpara"
                 right={`${price.toFixed(
                   3
@@ -774,7 +1006,9 @@ function App() {
                 <Stat
                   label="Energía acumulada"
                   value={
-                    Number.isFinite(energy)
+                    Number.isFinite(
+                      energy
+                    )
                       ? `${energy.toFixed(
                           2
                         )} kWh`
@@ -808,13 +1042,47 @@ function App() {
 
               <div className="mini-chart">
 
-                <span style={{ height: "28%" }} />
-                <span style={{ height: "44%" }} />
-                <span style={{ height: "35%" }} />
-                <span style={{ height: "65%" }} />
-                <span style={{ height: "48%" }} />
-                <span style={{ height: "30%" }} />
-                <span style={{ height: "52%" }} />
+                <span
+                  style={{
+                    height: "28%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "44%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "35%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "65%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "48%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "30%"
+                  }}
+                />
+
+                <span
+                  style={{
+                    height: "52%"
+                  }}
+                />
 
               </div>
 
@@ -846,7 +1114,9 @@ function App() {
 
         {page === "Tareas" && (
           <Placeholder
-            icon={<CheckSquare />}
+            icon={
+              <CheckSquare />
+            }
             title="Tareas / Recordatorios"
             text="Preparado para integrar tus listas todo de Home Assistant."
           />
@@ -856,7 +1126,9 @@ function App() {
 
         {page === "Compra" && (
           <Placeholder
-            icon={<ShoppingCart />}
+            icon={
+              <ShoppingCart />
+            }
             title="Lista de la compra"
             text="Preparado para integrar tu lista de compra de Home Assistant."
           />
@@ -866,7 +1138,9 @@ function App() {
 
         {page === "Calendario" && (
           <Placeholder
-            icon={<CalendarDays />}
+            icon={
+              <CalendarDays />
+            }
             title="Calendario"
             text="Preparado para integrar tus calendarios de Home Assistant."
           />
@@ -889,45 +1163,9 @@ function App() {
 
 
 /*
- * ICONO NETFLIX
- *
- * Lo hacemos directamente en SVG para no
- * instalar ninguna librería adicional.
- */
-
-function NetflixIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M6 3v18"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-
-      <path
-        d="M6 3l12 18"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-
-      <path
-        d="M18 3v18"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-    </svg>
-  );
-}
-
-
-/*
+ * =========================
  * CARD
+ * =========================
  */
 
 function Card({
@@ -965,7 +1203,9 @@ function Card({
 
 
 /*
- * CABECERA DE CARD
+ * =========================
+ * CABECERA CARD
+ * =========================
  */
 
 function CardHead({
@@ -980,7 +1220,9 @@ function CardHead({
 
         {icon}
 
-        <b>{title}</b>
+        <b>
+          {title}
+        </b>
 
       </div>
 
@@ -996,7 +1238,9 @@ function CardHead({
 
 
 /*
- * BOTÓN DE ACCIÓN
+ * =========================
+ * BOTÓN ACCIÓN
+ * =========================
  */
 
 function ActionButton({
@@ -1017,9 +1261,13 @@ function ActionButton({
 
       {icon}
 
-      <span>{text}</span>
+      <span>
+        {text}
+      </span>
 
-      <ChevronRight size={17} />
+      <ChevronRight
+        size={17}
+      />
 
     </button>
   );
@@ -1027,7 +1275,9 @@ function ActionButton({
 
 
 /*
+ * =========================
  * ESTADÍSTICA
+ * =========================
  */
 
 function Stat({
@@ -1037,9 +1287,13 @@ function Stat({
   return (
     <div>
 
-      <span>{label}</span>
+      <span>
+        {label}
+      </span>
 
-      <strong>{value}</strong>
+      <strong>
+        {value}
+      </strong>
 
     </div>
   );
@@ -1047,7 +1301,9 @@ function Stat({
 
 
 /*
+ * =========================
  * PÁGINAS VACÍAS
+ * =========================
  */
 
 function Placeholder({
@@ -1062,9 +1318,13 @@ function Placeholder({
         {icon}
       </div>
 
-      <h2>{title}</h2>
+      <h2>
+        {title}
+      </h2>
 
-      <p>{text}</p>
+      <p>
+        {text}
+      </p>
 
     </section>
   );
@@ -1072,28 +1332,36 @@ function Placeholder({
 
 
 /*
+ * =========================
  * AJUSTES
+ * =========================
  */
 
 function SettingsPage({
   config,
   setConfig
 }) {
-  const [url, setUrl] = useState(
-    config.url || DEFAULT_URL
-  );
+  const [url, setUrl] =
+    useState(
+      config.url ||
+        DEFAULT_URL
+    );
 
-  const [token, setToken] = useState(
-    config.token || ""
-  );
+  const [token, setToken] =
+    useState(
+      config.token || ""
+    );
 
-  const [price, setPrice] = useState(
-    config.price ?? DEFAULT_PRICE
-  );
+  const [price, setPrice] =
+    useState(
+      config.price ??
+        DEFAULT_PRICE
+    );
 
   const [yesterday, setYesterday] =
     useState(
-      config.yesterdayKwh ?? ""
+      config.yesterdayKwh ??
+        ""
     );
 
   function save() {
@@ -1107,7 +1375,9 @@ function SettingsPage({
 
     localStorage.setItem(
       "casa_config",
-      JSON.stringify(newConfig)
+      JSON.stringify(
+        newConfig
+      )
     );
 
     setConfig(newConfig);
@@ -1116,7 +1386,9 @@ function SettingsPage({
   return (
     <section className="settings card">
 
-      <h2>Configuración</h2>
+      <h2>
+        Configuración
+      </h2>
 
       <p className="muted">
         Los datos se guardan localmente
@@ -1132,7 +1404,9 @@ function SettingsPage({
           onChange={(e) =>
             setUrl(e.target.value)
           }
-          placeholder={DEFAULT_URL}
+          placeholder={
+            DEFAULT_URL
+          }
         />
 
       </label>
@@ -1145,7 +1419,9 @@ function SettingsPage({
           type="password"
           value={token}
           onChange={(e) =>
-            setToken(e.target.value)
+            setToken(
+              e.target.value
+            )
           }
           placeholder="Pega aquí tu token, sin compartirlo"
         />
@@ -1154,14 +1430,17 @@ function SettingsPage({
 
       <label>
 
-        Precio de energía (€/kWh)
+        Precio de energía
+        (€/kWh)
 
         <input
           type="number"
           step="0.001"
           value={price}
           onChange={(e) =>
-            setPrice(e.target.value)
+            setPrice(
+              e.target.value
+            )
           }
         />
 
@@ -1169,14 +1448,17 @@ function SettingsPage({
 
       <label>
 
-        Consumo de ayer (kWh)
+        Consumo de ayer
+        (kWh)
 
         <input
           type="number"
           step="0.01"
           value={yesterday}
           onChange={(e) =>
-            setYesterday(e.target.value)
+            setYesterday(
+              e.target.value
+            )
           }
           placeholder="Se automatizará en la siguiente versión"
         />
@@ -1209,7 +1491,9 @@ function SettingsPage({
 
 
 createRoot(
-  document.getElementById("root")
+  document.getElementById(
+    "root"
+  )
 ).render(
   <App />
 );
