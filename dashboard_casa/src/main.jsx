@@ -421,6 +421,10 @@ function App() {
         {page === "Domótica" && (
           <section className="grid">
 
+            {/* =========================
+                FILA 1: cuatro tarjetas
+            ========================= */}
+
             <Card
               title="Temperatura"
               icon={
@@ -441,10 +445,10 @@ function App() {
               sub="Sin sensor todavía"
             />
 
-            <section className="card wide">
+            <section className="card">
               <CardHead
                 icon={<Lightbulb />}
-                title="Lámpara salón"
+                title="Lámpara"
               />
 
               <div className="control-row">
@@ -463,7 +467,7 @@ function App() {
                 </strong>
 
                 <button
-                  className="ios-button"
+                  className="icon-toggle"
                   onClick={() =>
                     callService(
                       "switch",
@@ -474,17 +478,46 @@ function App() {
                     )
                   }
                 >
-                  <Power size={17} />
-
-                  {lampOn
-                    ? "Apagar"
-                    : "Encender"}
+                  <Power size={16} />
                 </button>
               </div>
             </section>
 
+            <section className="card">
+              <CardHead
+                icon={<Snowflake />}
+                title="Congelador"
+              />
+
+              <div
+                className={
+                  freezerOpen
+                    ? "big-status danger"
+                    : "big-status"
+                }
+              >
+                {freezerOpen ? (
+                  <>
+                    <AlertTriangle />
+                    Abierto
+                  </>
+                ) : (
+                  <>
+                    <Lock />
+                    Cerrado
+                  </>
+                )}
+              </div>
+
+              <p className="muted">
+                {freezerOpen
+                  ? "La puerta está abierta"
+                  : "Puerta cerrada correctamente"}
+              </p>
+            </section>
+
             {/* =========================
-                TV SALÓN
+                FILA 2: TV SALÓN (ancho completo)
             ========================= */}
 
             <section className="card wide">
@@ -668,40 +701,11 @@ function App() {
               </div>
             </section>
 
-            <section className="card">
-              <CardHead
-                icon={<Snowflake />}
-                title="Congelador"
-              />
+            {/* =========================
+                FILA 3: Persianas + Consumo
+            ========================= */}
 
-              <div
-                className={
-                  freezerOpen
-                    ? "big-status danger"
-                    : "big-status"
-                }
-              >
-                {freezerOpen ? (
-                  <>
-                    <AlertTriangle />
-                    Abierto
-                  </>
-                ) : (
-                  <>
-                    <Lock />
-                    Cerrado
-                  </>
-                )}
-              </div>
-
-              <p className="muted">
-                {freezerOpen
-                  ? "La puerta está abierta"
-                  : "Puerta cerrada correctamente"}
-              </p>
-            </section>
-
-            <section className="card">
+            <section className="card half">
               <CardHead
                 icon={<Blinds />}
                 title="Persianas"
@@ -741,7 +745,7 @@ function App() {
               </div>
             </section>
 
-            <section className="card wide">
+            <section className="card half">
               <CardHead
                 icon={<Zap />}
                 title="Consumo lámpara"
@@ -812,6 +816,35 @@ function App() {
                 Home Assistant.
               </p>
             </section>
+
+            {/* =========================
+                FILA 4: Tareas + Calendario
+            ========================= */}
+
+            <section className="card half">
+              <CardHead
+                icon={<CheckSquare />}
+                title="Tareas"
+              />
+
+              <p className="muted">
+                Próximamente aquí verás tus
+                tareas pendientes.
+              </p>
+            </section>
+
+            <section className="card half">
+              <CardHead
+                icon={<CalendarDays />}
+                title="Calendario"
+              />
+
+              <p className="muted">
+                Próximamente aquí verás tus
+                próximos eventos.
+              </p>
+            </section>
+
           </section>
         )}
 
