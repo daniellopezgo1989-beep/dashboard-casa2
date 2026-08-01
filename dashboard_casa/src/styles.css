@@ -331,22 +331,50 @@ h1{
   cursor:pointer
 }
 
-.icon-toggle{
-  border:0;
-  background:var(--blue);
-  color:#fff;
-  width:34px;
-  height:34px;
-  min-width:34px;
-  border-radius:10px;
-  display:grid;
-  place-items:center;
-  cursor:pointer
+
+/* =========================================================
+   BOTÓN LÁMPARA — rectangular, elegante y discreto
+   ========================================================= */
+
+.lamp-toggle{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.05);
+  color:var(--muted);
+  height:32px;
+  padding:0 14px;
+  border-radius:9px;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.01em;
+  cursor:pointer;
+  transition:
+    background .15s ease,
+    border-color .15s ease,
+    color .15s ease
 }
 
-.icon-toggle:hover{
-  opacity:.85
+.lamp-toggle:hover{
+  background:rgba(255,255,255,.09);
+  border-color:rgba(255,255,255,.22)
 }
+
+.lamp-toggle svg{
+  opacity:.8
+}
+
+.lamp-toggle.on{
+  color:var(--green);
+  border-color:rgba(52,229,185,.35);
+  background:rgba(52,229,185,.08)
+}
+
+.lamp-toggle.on:hover{
+  background:rgba(52,229,185,.14)
+}
+
 
 .button-grid{
   display:grid;
@@ -604,6 +632,15 @@ h1{
 
 .big-status.danger{
   color:var(--red)
+}
+
+.freezer-timer{
+  margin-top:10px;
+  font-size:15px;
+  font-weight:700;
+  letter-spacing:-.01em;
+  color:#ff4d4d;
+  font-variant-numeric:tabular-nums
 }
 
 
