@@ -48,9 +48,7 @@ const ENTITIES = {
 function loadConfig() {
   try {
     return {
-      ...JSON.parse(
-        localStorage.getItem("casa_config") || "{}"
-      )
+      ...JSON.parse(localStorage.getItem("casa_config") || "{}")
     };
   } catch {
     return {};
@@ -59,40 +57,21 @@ function loadConfig() {
 
 function App() {
   const [config, setConfig] = useState(loadConfig());
-
   const [page, setPage] = useState("Domótica");
-
   const [dark, setDark] = useState(
     localStorage.getItem("casa_dark") === "1"
   );
-
   const [connected, setConnected] = useState(false);
-
   const [states, setStates] = useState({});
-
   const [message, setMessage] = useState("");
 
   const url = config.url || DEFAULT_URL;
-
   const token = config.token || "";
 
-  /*
-   * TEMA
-   */
-
   useEffect(() => {
-    document.documentElement.dataset.theme =
-      dark ? "dark" : "light";
-
-    localStorage.setItem(
-      "casa_dark",
-      dark ? "1" : "0"
-    );
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    localStorage.setItem("casa_dark", dark ? "1" : "0");
   }, [dark]);
-
-  /*
-   * CONEXIÓN EN TIEMPO REAL CON HOME ASSISTANT
-   */
 
   useEffect(() => {
     if (!token) {
@@ -105,61 +84,33 @@ function App() {
     let alive = true;
 
     try {
-      const wsUrl =
-        url.replace(/^http/, "ws") +
-        "/api/websocket";
-
+      const wsUrl = url.replace(/^http/, "ws") + "/api/websocket";
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log(
-          "WebSocket conectado"
-        );
+        console.log("WebSocket conectado");
       };
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(
-            event.data
-          );
+          const msg = JSON.parse(event.data);
 
-          /*
-           * AUTENTICACIÓN
-           */
-
-          if (
-            msg.type ===
-            "auth_required"
-          ) {
+          if (msg.type === "auth_required") {
             ws.send(
               JSON.stringify({
                 type: "auth",
                 access_token: token
               })
             );
-
             return;
           }
 
-          /*
-           * AUTENTICACIÓN CORRECTA
-           */
-
-          if (
-            msg.type ===
-            "auth_ok"
-          ) {
-            console.log(
-              "Home Assistant autenticado"
-            );
+          if (msg.type === "auth_ok") {
+            console.log("Home Assistant autenticado");
 
             if (alive) {
               setConnected(true);
             }
-
-            /*
-             * ESTADOS INICIALES
-             */
 
             ws.send(
               JSON.stringify({
@@ -168,39 +119,24 @@ function App() {
               })
             );
 
-            /*
-             * SUSCRIPCIÓN A CAMBIOS
-             */
-
             ws.send(
               JSON.stringify({
                 id: 2,
                 type: "subscribe_events",
-                event_type:
-                  "state_changed"
+                event_type: "state_changed"
               })
             );
 
             return;
           }
 
-          /*
-           * ESTADOS INICIALES
-           */
-
-          if (
-            msg.id === 1 &&
-            msg.success
-          ) {
-            const map =
-              Object.fromEntries(
-                msg.result.map(
-                  (entity) => [
-                    entity.entity_id,
-                    entity
-                  ]
-                )
-              );
+          if (msg.id === 1 && msg.success) {
+            const map = Object.fromEntries(
+              msg.result.map((entity) => [
+                entity.entity_id,
+                entity
+              ])
+            );
 
             if (alive) {
               setStates(map);
@@ -209,61 +145,33 @@ function App() {
             return;
           }
 
-          /*
-           * SUSCRIPCIÓN CORRECTA
-           */
-
-          if (
-            msg.id === 2 &&
-            msg.success
-          ) {
-            console.log(
-              "Suscripción a cambios activa"
-            );
-
+          if (msg.id === 2 && msg.success) {
+            console.log("Suscripción a cambios activa");
             return;
           }
-
-          /*
-           * CAMBIO DE ESTADO EN TIEMPO REAL
-           */
 
           if (
             msg.type === "event" &&
             msg.event &&
-            msg.event.event_type ===
-              "state_changed"
+            msg.event.event_type === "state_changed"
           ) {
-            const eventData =
-              msg.event.data;
+            const eventData = msg.event.data;
 
-            if (
-              !eventData ||
-              !eventData.entity_id
-            ) {
+            if (!eventData || !eventData.entity_id) {
               return;
             }
 
-            const entityId =
-              eventData.entity_id;
+            const entityId = eventData.entity_id;
+            const newState = eventData.new_state;
 
-            const newState =
-              eventData.new_state;
-
-            if (
-              !newState ||
-              !alive
-            ) {
+            if (!newState || !alive) {
               return;
             }
 
-            setStates(
-              (previous) => ({
-                ...previous,
-                [entityId]:
-                  newState
-              })
-            );
+            setStates((previous) => ({
+              ...previous,
+              [entityId]: newState
+            }));
 
             console.log(
               "Estado actualizado:",
@@ -280,9 +188,7 @@ function App() {
       };
 
       ws.onclose = () => {
-        console.log(
-          "WebSocket cerrado"
-        );
+        console.log("WebSocket cerrado");
 
         if (alive) {
           setConnected(false);
@@ -290,10 +196,7 @@ function App() {
       };
 
       ws.onerror = (error) => {
-        console.error(
-          "Error WebSocket:",
-          error
-        );
+        console.error("Error WebSocket:", error);
 
         if (alive) {
           setConnected(false);
@@ -317,29 +220,28 @@ function App() {
     };
   }, [url, token]);
 
-  /*
-   * OBTENER ESTADO
-   */
-
   const state = (entityId) => {
     return states[entityId]?.state;
   };
 
-  /*
-   * OBTENER ATRIBUTO
-   */
+  const lampOn = state(ENTITIES.lamp) === "on";
 
-  const attr = (
-    entityId,
-    key
-  ) => {
-    return states[entityId]
-      ?.attributes?.[key];
-  };
+  const freezerOpen =
+    state(ENTITIES.freezer) === "on";
 
-  /*
-   * EJECUTAR SERVICIO
-   */
+  const power = state(ENTITIES.power);
+
+  const energy = Number(state(ENTITIES.energy));
+
+  const price = Number(
+    config.price ?? DEFAULT_PRICE
+  );
+
+  const yesterdayKwh = Number(
+    config.yesterdayKwh ?? 0
+  );
+
+  const yesterdayCost = yesterdayKwh * price;
 
   async function callService(
     domain,
@@ -355,35 +257,25 @@ function App() {
     }
 
     try {
-      const response =
-        await fetch(
-          `${url}/api/services/${domain}/${service}`,
-          {
-            method: "POST",
-
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-
-              "Content-Type":
-                "application/json"
-            },
-
-            body: JSON.stringify({
-              entity_id
-            })
-          }
-        );
+      const response = await fetch(
+        `${url}/api/services/${domain}/${service}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            entity_id
+          })
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(
-          `HTTP ${response.status}`
-        );
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      setMessage(
-        "Acción enviada"
-      );
+      setMessage("Acción enviada");
 
       setTimeout(() => {
         setMessage("");
@@ -404,56 +296,6 @@ function App() {
     }
   }
 
-  /*
-   * LÁMPARA
-   */
-
-  const lampOn =
-    state(ENTITIES.lamp) ===
-    "on";
-
-  /*
-   * CONGELADOR
-   *
-   * on  = abierto
-   * off = cerrado
-   */
-
-  const freezerOpen =
-    state(
-      ENTITIES.freezer
-    ) === "on";
-
-  /*
-   * CONSUMO
-   */
-
-  const power =
-    state(ENTITIES.power);
-
-  const energy =
-    Number(
-      state(ENTITIES.energy)
-    );
-
-  const price =
-    Number(
-      config.price ??
-        DEFAULT_PRICE
-    );
-
-  const yesterdayKwh =
-    Number(
-      config.yesterdayKwh ?? 0
-    );
-
-  const yesterdayCost =
-    yesterdayKwh * price;
-
-  /*
-   * NAVEGACIÓN
-   */
-
   const nav = [
     ["Domótica", House],
     ["Tareas", CheckSquare],
@@ -464,71 +306,47 @@ function App() {
 
   return (
     <div className="app">
-
-      {/* SIDEBAR */}
-
       <aside className="sidebar">
-
         <div className="brand">
-
           <div className="brand-icon">
             <House size={22} />
           </div>
 
           <div>
             <b>Mi Casa</b>
-            <span>
-              Dashboard
-            </span>
+            <span>Dashboard</span>
           </div>
-
         </div>
 
         <nav>
-
-          {nav.map(
-            ([name, Icon]) => (
-              <button
-                key={name}
-                className={
-                  page === name
-                    ? "nav active"
-                    : "nav"
-                }
-                onClick={() =>
-                  setPage(name)
-                }
-              >
-                <Icon size={20} />
-
-                <span>
-                  {name}
-                </span>
-              </button>
-            )
-          )}
-
+          {nav.map(([name, Icon]) => (
+            <button
+              key={name}
+              className={
+                page === name
+                  ? "nav active"
+                  : "nav"
+              }
+              onClick={() => setPage(name)}
+            >
+              <Icon size={20} />
+              <span>{name}</span>
+            </button>
+          ))}
         </nav>
 
         <div className="sidebar-bottom">
-
           <button
             className="theme-btn"
-            onClick={() =>
-              setDark(!dark)
-            }
+            onClick={() => setDark(!dark)}
           >
-
             {dark ? (
               <Sun size={19} />
             ) : (
               <Moon size={19} />
             )}
 
-            {dark
-              ? "Modo claro"
-              : "Modo oscuro"}
-
+            {dark ? "Modo claro" : "Modo oscuro"}
           </button>
 
           <div
@@ -538,7 +356,6 @@ function App() {
                 : "connection"
             }
           >
-
             {connected ? (
               <Wifi size={16} />
             ) : (
@@ -548,33 +365,18 @@ function App() {
             {connected
               ? "Conectado"
               : "Sin conexión"}
-
           </div>
-
         </div>
-
       </aside>
 
-      {/* CONTENIDO */}
-
       <main>
-
         <header>
-
           <div>
-
-            <div className="eyebrow">
-              MI CASA
-            </div>
-
-            <h1>
-              {page}
-            </h1>
-
+            <div className="eyebrow">MI CASA</div>
+            <h1>{page}</h1>
           </div>
 
           <div className="status-pill">
-
             {connected ? (
               <>
                 <Wifi size={15} />
@@ -586,9 +388,7 @@ function App() {
                 Configura HA
               </>
             )}
-
           </div>
-
         </header>
 
         {message && (
@@ -597,55 +397,36 @@ function App() {
           </div>
         )}
 
-        {/* =========================
-            DOMÓTICA
-        ========================= */}
-
         {page === "Domótica" && (
-
           <section className="grid">
-
-            {/* TEMPERATURA */}
 
             <Card
               title="Temperatura"
               icon={
-                <span className="emoji">
-                  🌡️
-                </span>
+                <span className="emoji">🌡️</span>
               }
               muted
               value="—"
               sub="Sin sensor todavía"
             />
-
-            {/* HUMEDAD */}
 
             <Card
               title="Humedad"
               icon={
-                <span className="emoji">
-                  💧
-                </span>
+                <span className="emoji">💧</span>
               }
               muted
               value="—"
               sub="Sin sensor todavía"
             />
 
-            {/* =========================
-                LÁMPARA
-            ========================= */}
-
             <section className="card wide">
-
               <CardHead
                 icon={<Lightbulb />}
                 title="Lámpara salón"
               />
 
               <div className="control-row">
-
                 <div
                   className={
                     lampOn
@@ -672,17 +453,13 @@ function App() {
                     )
                   }
                 >
-
                   <Power size={17} />
 
                   {lampOn
                     ? "Apagar"
                     : "Encender"}
-
                 </button>
-
               </div>
-
             </section>
 
             {/* =========================
@@ -690,7 +467,6 @@ function App() {
             ========================= */}
 
             <section className="card wide">
-
               <CardHead
                 icon={<Tv />}
                 title="TV salón"
@@ -698,12 +474,8 @@ function App() {
 
               <div className="button-grid">
 
-                {/* MODO CINE */}
-
                 <ActionButton
-                  icon={
-                    <Film />
-                  }
+                  icon={<Film />}
                   text="Modo Cine"
                   on={() =>
                     callService(
@@ -714,12 +486,8 @@ function App() {
                   }
                 />
 
-                {/* TV ENCENDER */}
-
                 <ActionButton
-                  icon={
-                    <Power />
-                  }
+                  icon={<Power />}
                   text="TV Encender"
                   on={() =>
                     callService(
@@ -730,12 +498,8 @@ function App() {
                   }
                 />
 
-                {/* TV APAGAR */}
-
                 <ActionButton
-                  icon={
-                    <Power />
-                  }
+                  icon={<Power />}
                   text="TV Apagar"
                   danger
                   on={() =>
@@ -750,11 +514,16 @@ function App() {
                 {/* NETFLIX */}
 
                 <ActionButton
+                  className="app-tv netflix"
                   icon={
                     <img
                       src="/apps/netflix.png"
                       className="app-icon"
                       alt="Netflix"
+                      onError={(e) => {
+                        e.currentTarget.style.visibility =
+                          "hidden";
+                      }}
                     />
                   }
                   text="Netflix"
@@ -770,11 +539,16 @@ function App() {
                 {/* HBO MAX */}
 
                 <ActionButton
+                  className="app-tv hbo"
                   icon={
                     <img
                       src="/apps/hbo-max.png"
                       className="app-icon"
                       alt="HBO Max"
+                      onError={(e) => {
+                        e.currentTarget.style.visibility =
+                          "hidden";
+                      }}
                     />
                   }
                   text="HBO Max"
@@ -790,11 +564,16 @@ function App() {
                 {/* PRIME VIDEO */}
 
                 <ActionButton
+                  className="app-tv prime"
                   icon={
                     <img
                       src="/apps/prime-video.png"
                       className="app-icon"
                       alt="Prime Video"
+                      onError={(e) => {
+                        e.currentTarget.style.visibility =
+                          "hidden";
+                      }}
                     />
                   }
                   text="Prime Video"
@@ -807,14 +586,19 @@ function App() {
                   }
                 />
 
-                {/* MOVISTAR */}
+                {/* MOVISTAR HDMI */}
 
                 <ActionButton
+                  className="app-tv movistar"
                   icon={
                     <img
                       src="/apps/movistar.png"
                       className="app-icon"
                       alt="Movistar"
+                      onError={(e) => {
+                        e.currentTarget.style.visibility =
+                          "hidden";
+                      }}
                     />
                   }
                   text="Movistar HDMI"
@@ -827,17 +611,22 @@ function App() {
                   }
                 />
 
-                {/* MAX */}
+                {/* MAX PLAYER */}
 
                 <ActionButton
+                  className="app-tv maxplayer"
                   icon={
                     <img
                       src="/apps/max.png"
                       className="app-icon"
                       alt="Max"
+                      onError={(e) => {
+                        e.currentTarget.style.visibility =
+                          "hidden";
+                      }}
                     />
                   }
-                  text="Max"
+                  text="Max Player"
                   on={() =>
                     callService(
                       "script",
@@ -848,19 +637,11 @@ function App() {
                 />
 
               </div>
-
             </section>
 
-            {/* =========================
-                CONGELADOR
-            ========================= */}
-
             <section className="card">
-
               <CardHead
-                icon={
-                  <Snowflake />
-                }
+                icon={<Snowflake />}
                 title="Congelador"
               />
 
@@ -871,7 +652,6 @@ function App() {
                     : "big-status"
                 }
               >
-
                 {freezerOpen ? (
                   <>
                     <AlertTriangle />
@@ -883,117 +663,63 @@ function App() {
                     Cerrado
                   </>
                 )}
-
               </div>
 
               <p className="muted">
-
                 {freezerOpen
                   ? "La puerta está abierta"
                   : "Puerta cerrada correctamente"}
-
               </p>
-
             </section>
 
-            {/* =========================
-                PERSIANAS
-            ========================= */}
-
             <section className="card">
-
               <CardHead
-                icon={
-                  <Blinds />
-                }
+                icon={<Blinds />}
                 title="Persianas"
                 right="Próximamente"
               />
 
               <div className="blind">
-
                 <div>
-
-                  <b>
-                    Salón
-                  </b>
-
+                  <b>Salón</b>
                   <span>
                     Sin entidad todavía
                   </span>
-
                 </div>
 
                 <div className="blind-buttons">
-
-                  <button disabled>
-                    ↑
-                  </button>
-
-                  <button disabled>
-                    ■
-                  </button>
-
-                  <button disabled>
-                    ↓
-                  </button>
-
+                  <button disabled>↑</button>
+                  <button disabled>■</button>
+                  <button disabled>↓</button>
                 </div>
-
               </div>
 
               <div className="blind">
-
                 <div>
-
                   <b>
                     Habitación principal
                   </b>
-
                   <span>
                     Sin entidad todavía
                   </span>
-
                 </div>
 
                 <div className="blind-buttons">
-
-                  <button disabled>
-                    ↑
-                  </button>
-
-                  <button disabled>
-                    ■
-                  </button>
-
-                  <button disabled>
-                    ↓
-                  </button>
-
+                  <button disabled>↑</button>
+                  <button disabled>■</button>
+                  <button disabled>↓</button>
                 </div>
-
               </div>
-
             </section>
 
-            {/* =========================
-                CONSUMO
-            ========================= */}
-
             <section className="card wide">
-
               <CardHead
-                icon={
-                  <Zap />
-                }
+                icon={<Zap />}
                 title="Consumo lámpara"
-                right={`${price.toFixed(
-                  3
-                )} €/kWh`}
+                right={`${price.toFixed(3)} €/kWh`}
               />
 
               <div className="stats">
-
                 <Stat
                   label="Ahora"
                   value={
@@ -1006,12 +732,8 @@ function App() {
                 <Stat
                   label="Energía acumulada"
                   value={
-                    Number.isFinite(
-                      energy
-                    )
-                      ? `${energy.toFixed(
-                          2
-                        )} kWh`
+                    Number.isFinite(energy)
+                      ? `${energy.toFixed(2)} kWh`
                       : "—"
                   }
                 />
@@ -1020,9 +742,7 @@ function App() {
                   label="Ayer"
                   value={
                     yesterdayKwh
-                      ? `${yesterdayKwh.toFixed(
-                          2
-                        )} kWh`
+                      ? `${yesterdayKwh.toFixed(2)} kWh`
                       : "Configurar"
                   }
                 />
@@ -1031,63 +751,23 @@ function App() {
                   label="Coste ayer"
                   value={
                     yesterdayKwh
-                      ? `${yesterdayCost.toFixed(
-                          3
-                        )} €`
+                      ? `${yesterdayCost.toFixed(3)} €`
                       : "—"
                   }
                 />
-
               </div>
 
               <div className="mini-chart">
-
-                <span
-                  style={{
-                    height: "28%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "44%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "35%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "65%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "48%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "30%"
-                  }}
-                />
-
-                <span
-                  style={{
-                    height: "52%"
-                  }}
-                />
-
+                <span style={{ height: "28%" }} />
+                <span style={{ height: "44%" }} />
+                <span style={{ height: "35%" }} />
+                <span style={{ height: "65%" }} />
+                <span style={{ height: "48%" }} />
+                <span style={{ height: "30%" }} />
+                <span style={{ height: "52%" }} />
               </div>
 
               <div className="chart-labels">
-
                 <span>L</span>
                 <span>M</span>
                 <span>X</span>
@@ -1095,7 +775,6 @@ function App() {
                 <span>V</span>
                 <span>S</span>
                 <span>D</span>
-
               </div>
 
               <p className="hint">
@@ -1103,50 +782,33 @@ function App() {
                 usando las estadísticas de
                 Home Assistant.
               </p>
-
             </section>
-
           </section>
-
         )}
-
-        {/* TAREAS */}
 
         {page === "Tareas" && (
           <Placeholder
-            icon={
-              <CheckSquare />
-            }
+            icon={<CheckSquare />}
             title="Tareas / Recordatorios"
             text="Preparado para integrar tus listas todo de Home Assistant."
           />
         )}
 
-        {/* COMPRA */}
-
         {page === "Compra" && (
           <Placeholder
-            icon={
-              <ShoppingCart />
-            }
+            icon={<ShoppingCart />}
             title="Lista de la compra"
             text="Preparado para integrar tu lista de compra de Home Assistant."
           />
         )}
 
-        {/* CALENDARIO */}
-
         {page === "Calendario" && (
           <Placeholder
-            icon={
-              <CalendarDays />
-            }
+            icon={<CalendarDays />}
             title="Calendario"
             text="Preparado para integrar tus calendarios de Home Assistant."
           />
         )}
-
-        {/* AJUSTES */}
 
         {page === "Ajustes" && (
           <SettingsPage
@@ -1154,19 +816,10 @@ function App() {
             setConfig={setConfig}
           />
         )}
-
       </main>
-
     </div>
   );
 }
-
-
-/*
- * =========================
- * CARD
- * =========================
- */
 
 function Card({
   title,
@@ -1177,7 +830,6 @@ function Card({
 }) {
   return (
     <section className="card">
-
       <CardHead
         icon={icon}
         title={title}
@@ -1193,20 +845,10 @@ function Card({
         {value}
       </div>
 
-      <p className="muted">
-        {sub}
-      </p>
-
+      <p className="muted">{sub}</p>
     </section>
   );
 }
-
-
-/*
- * =========================
- * CABECERA CARD
- * =========================
- */
 
 function CardHead({
   icon,
@@ -1215,15 +857,9 @@ function CardHead({
 }) {
   return (
     <div className="card-head">
-
       <div className="card-title">
-
         {icon}
-
-        <b>
-          {title}
-        </b>
-
+        <b>{title}</b>
       </div>
 
       {right && (
@@ -1231,54 +867,43 @@ function CardHead({
           {right}
         </span>
       )}
-
     </div>
   );
 }
-
-
-/*
- * =========================
- * BOTÓN ACCIÓN
- * =========================
- */
 
 function ActionButton({
   icon,
   text,
   on,
-  danger
+  danger,
+  className = ""
 }) {
   return (
     <button
-      className={
-        danger
-          ? "action danger"
-          : "action"
-      }
+      className={[
+        "action",
+        className,
+        danger ? "danger" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onClick={on}
     >
+      <div className="action-icon">
+        {icon}
+      </div>
 
-      {icon}
-
-      <span>
+      <span className="app-name">
         {text}
       </span>
 
       <ChevronRight
+        className="app-arrow"
         size={17}
       />
-
     </button>
   );
 }
-
-
-/*
- * =========================
- * ESTADÍSTICA
- * =========================
- */
 
 function Stat({
   label,
@@ -1286,25 +911,11 @@ function Stat({
 }) {
   return (
     <div>
-
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
-
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
-
-
-/*
- * =========================
- * PÁGINAS VACÍAS
- * =========================
- */
 
 function Placeholder({
   icon,
@@ -1313,55 +924,35 @@ function Placeholder({
 }) {
   return (
     <section className="empty-page">
-
       <div className="empty-icon">
         {icon}
       </div>
 
-      <h2>
-        {title}
-      </h2>
-
-      <p>
-        {text}
-      </p>
-
+      <h2>{title}</h2>
+      <p>{text}</p>
     </section>
   );
 }
-
-
-/*
- * =========================
- * AJUSTES
- * =========================
- */
 
 function SettingsPage({
   config,
   setConfig
 }) {
-  const [url, setUrl] =
-    useState(
-      config.url ||
-        DEFAULT_URL
-    );
+  const [url, setUrl] = useState(
+    config.url || DEFAULT_URL
+  );
 
-  const [token, setToken] =
-    useState(
-      config.token || ""
-    );
+  const [token, setToken] = useState(
+    config.token || ""
+  );
 
-  const [price, setPrice] =
-    useState(
-      config.price ??
-        DEFAULT_PRICE
-    );
+  const [price, setPrice] = useState(
+    config.price ?? DEFAULT_PRICE
+  );
 
   const [yesterday, setYesterday] =
     useState(
-      config.yesterdayKwh ??
-        ""
+      config.yesterdayKwh ?? ""
     );
 
   function save() {
@@ -1375,9 +966,7 @@ function SettingsPage({
 
     localStorage.setItem(
       "casa_config",
-      JSON.stringify(
-        newConfig
-      )
+      JSON.stringify(newConfig)
     );
 
     setConfig(newConfig);
@@ -1385,10 +974,7 @@ function SettingsPage({
 
   return (
     <section className="settings card">
-
-      <h2>
-        Configuración
-      </h2>
+      <h2>Configuración</h2>
 
       <p className="muted">
         Los datos se guardan localmente
@@ -1396,7 +982,6 @@ function SettingsPage({
       </p>
 
       <label>
-
         URL de Home Assistant
 
         <input
@@ -1404,32 +989,24 @@ function SettingsPage({
           onChange={(e) =>
             setUrl(e.target.value)
           }
-          placeholder={
-            DEFAULT_URL
-          }
+          placeholder={DEFAULT_URL}
         />
-
       </label>
 
       <label>
-
         Token de acceso
 
         <input
           type="password"
           value={token}
           onChange={(e) =>
-            setToken(
-              e.target.value
-            )
+            setToken(e.target.value)
           }
           placeholder="Pega aquí tu token, sin compartirlo"
         />
-
       </label>
 
       <label>
-
         Precio de energía
         (€/kWh)
 
@@ -1438,16 +1015,12 @@ function SettingsPage({
           step="0.001"
           value={price}
           onChange={(e) =>
-            setPrice(
-              e.target.value
-            )
+            setPrice(e.target.value)
           }
         />
-
       </label>
 
       <label>
-
         Consumo de ayer
         (kWh)
 
@@ -1456,13 +1029,10 @@ function SettingsPage({
           step="0.01"
           value={yesterday}
           onChange={(e) =>
-            setYesterday(
-              e.target.value
-            )
+            setYesterday(e.target.value)
           }
           placeholder="Se automatizará en la siguiente versión"
         />
-
       </label>
 
       <button
@@ -1473,7 +1043,6 @@ function SettingsPage({
       </button>
 
       <div className="security">
-
         <Lock size={17} />
 
         <span>
@@ -1482,18 +1051,13 @@ function SettingsPage({
           en el almacenamiento local del
           navegador.
         </span>
-
       </div>
-
     </section>
   );
 }
 
-
 createRoot(
-  document.getElementById(
-    "root"
-  )
+  document.getElementById("root")
 ).render(
   <App />
 );
