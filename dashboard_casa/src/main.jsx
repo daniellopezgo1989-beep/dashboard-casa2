@@ -491,7 +491,13 @@ function App() {
             ? {
                 width: "100%",
                 minHeight: "100vh",
-                margin: 0
+                margin: 0,
+                padding: "20px",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center"
               }
             : undefined
         }
@@ -558,7 +564,18 @@ function App() {
         )}
 
         {page === "Domótica" && (
-          <section className="grid">
+          <section
+            className="grid"
+            style={
+              fullscreen
+                ? {
+                    width: "100%",
+                    maxWidth: "1000px",
+                    margin: "0 auto"
+                  }
+                : undefined
+            }
+          >
 
             {/* =========================
                 FILA 1: cuatro tarjetas
