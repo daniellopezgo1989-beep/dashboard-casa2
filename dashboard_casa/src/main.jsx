@@ -19,7 +19,9 @@ import {
   Lock,
   AlertTriangle,
   Sun,
-  Moon
+  Moon,
+  Maximize,
+  Minimize
 } from "lucide-react";
 import "./styles.css";
 
@@ -100,6 +102,7 @@ function App() {
 
   const [freezerOpenSince, setFreezerOpenSince] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [fullscreen, setFullscreen] = useState(false);
 
   const url = config.url || DEFAULT_URL;
   const token = config.token || "";
@@ -108,6 +111,40 @@ function App() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("casa_dark", dark ? "1" : "0");
   }, [dark]);
+
+  // Modo pantalla completa del dashboard.
+  // Se usa la Fullscreen API del navegador para que el dashboard
+  // ocupe toda la pantalla y, además, ocultamos el menú y cabecera.
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener(
+        "fullscreenchange",
+        handleFullscreenChange
+      );
+    };
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.error("No se pudo cambiar a pantalla completa:", error);
+      setMessage("El navegador no permite pantalla completa");
+      setTimeout(() => {
+        setMessage("");
+      }, 2000);
+    }
+  }
 
   useEffect(() => {
     if (!token) {
@@ -370,8 +407,22 @@ function App() {
   ];
 
   return (
-    <div className="app">
-      <aside className="sidebar">
+    <div
+      className="app"
+      style={
+        fullscreen
+          ? {
+              gridTemplateColumns: "1fr",
+              width: "100vw",
+              minHeight: "100vh"
+            }
+          : undefined
+      }
+    >
+      <aside
+        className="sidebar"
+        style={fullscreen ? { display: "none" } : undefined}
+      >
         <div className="brand">
           <div className="brand-icon">
             <House size={22} />
@@ -434,8 +485,52 @@ function App() {
         </div>
       </aside>
 
-      <main>
-        <header>
+      <main
+        style={
+          fullscreen
+            ? {
+                width: "100%",
+                minHeight: "100vh",
+                margin: 0
+              }
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          aria-label={
+            fullscreen
+              ? "Salir de pantalla completa"
+              : "Entrar en pantalla completa"
+          }
+          title={
+            fullscreen
+              ? "Salir de pantalla completa"
+              : "Pantalla completa"
+          }
+          style={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 9999,
+            width: 44,
+            height: 44,
+            border: "none",
+            borderRadius: 12,
+            display: "grid",
+            placeItems: "center",
+            cursor: "pointer",
+            background: "var(--card, rgba(20,20,25,.92))",
+            color: "var(--text, currentColor)",
+            boxShadow: "0 8px 24px rgba(0,0,0,.25)",
+            backdropFilter: "blur(10px)"
+          }}
+        >
+          {fullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+        </button>
+
+        <header style={fullscreen ? { display: "none" } : undefined}>
           <div>
             <div className="eyebrow">MI CASA</div>
             <h1>{page}</h1>
