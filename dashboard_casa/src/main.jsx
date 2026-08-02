@@ -569,9 +569,16 @@ function App() {
             style={
               fullscreen
                 ? {
-                    width: "100%",
+                    position: "fixed",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "min(92vw, 1000px)",
                     maxWidth: "1000px",
-                    margin: "0 auto"
+                    maxHeight: "88vh",
+                    overflowY: "auto",
+                    margin: 0,
+                    zIndex: 10
                   }
                 : undefined
             }
