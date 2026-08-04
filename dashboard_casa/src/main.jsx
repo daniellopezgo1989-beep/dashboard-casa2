@@ -24,6 +24,7 @@ import {
   Minimize,
   Pencil,
   Check,
+  X,
   GripVertical
 } from "lucide-react";
 import "./styles.css";
@@ -154,6 +155,9 @@ function App() {
   const [editMode, setEditMode] = useState(false);
   const [editOrder, setEditOrder] = useState(DEFAULT_WIDGET_ORDER);
   const [draggingWidget, setDraggingWidget] = useState(null);
+  const [dragPosition, setDragPosition] = useState(null);
+  const dragStartRef = useRef(null);
+  const dragMovedRef = useRef(false);
 
   const draggedWidgetRef = useRef(null);
   const dragOverWidgetRef = useRef(null);
@@ -177,20 +181,49 @@ function App() {
     draggedWidgetRef.current = null;
     dragOverWidgetRef.current = null;
     setDraggingWidget(null);
+    setDragPosition(null);
+    dragStartRef.current = null;
 
     setMessage("Distribución guardada");
     setTimeout(() => setMessage(""), 1600);
   }
 
+  function cancelWidgetEdit() {
+    setEditOrder(widgetOrder);
+    setEditMode(false);
+    draggedWidgetRef.current = null;
+    dragOverWidgetRef.current = null;
+    dragStartRef.current = null;
+    setDraggingWidget(null);
+    setDragPosition(null);
+  }
+
   function startWidgetDrag(id, event) {
     if (!editMode) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
 
     event.preventDefault();
     event.stopPropagation();
 
+    const rect = event.currentTarget.getBoundingClientRect();
+
     draggedWidgetRef.current = id;
     dragOverWidgetRef.current = id;
+    dragMovedRef.current = false;
+    dragStartRef.current = {
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      left: rect.left,
+      top: rect.top
+    };
+
     setDraggingWidget(id);
+    setDragPosition({
+      width: rect.width,
+      height: rect.height,
+      x: 0,
+      y: 0
+    });
 
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -198,37 +231,55 @@ function App() {
   }
 
   function moveWidgetDrag(event) {
-    if (!editMode || !draggedWidgetRef.current) return;
+    if (!editMode || !draggedWidgetRef.current || !dragStartRef.current) return;
 
     event.preventDefault();
 
+    const start = dragStartRef.current;
+    const x = event.clientX - start.pointerX;
+    const y = event.clientY - start.pointerY;
+
+    if (Math.abs(x) > 4 || Math.abs(y) > 4) {
+      dragMovedRef.current = true;
+    }
+
+    setDragPosition((previous) =>
+      previous
+        ? { ...previous, x, y }
+        : previous
+    );
+
+    // Mientras mantienes pulsado, buscamos la tarjeta que está físicamente
+    // debajo del dedo/ratón y vamos desplazando el elemento arrastrado
+    // dentro del orden del grid.
     const target = document
-      .elementFromPoint(event.clientX, event.clientY)
-      ?.closest(".dashboard-widget");
+      .elementsFromPoint(event.clientX, event.clientY)
+      .map((element) => element.closest?.(".dashboard-widget"))
+      .find((element) => element && element.dataset.widgetId !== draggedWidgetRef.current);
 
     if (!target) return;
 
     const targetId = target.dataset.widgetId;
     const fromId = draggedWidgetRef.current;
 
-    if (
-      !targetId ||
-      targetId === fromId ||
-      targetId === dragOverWidgetRef.current
-    ) {
+    if (!targetId || targetId === fromId || targetId === dragOverWidgetRef.current) {
       return;
     }
+
+    const rect = target.getBoundingClientRect();
+    const before = event.clientY < rect.top + rect.height / 2;
 
     setEditOrder((previous) => {
       const next = [...previous];
       const fromIndex = next.indexOf(fromId);
-      const toIndex = next.indexOf(targetId);
+      const targetIndex = next.indexOf(targetId);
 
-      if (fromIndex === -1 || toIndex === -1) return previous;
+      if (fromIndex === -1 || targetIndex === -1) return previous;
 
       next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, fromId);
-
+      const newTargetIndex = next.indexOf(targetId);
+      const insertIndex = before ? newTargetIndex : newTargetIndex + 1;
+      next.splice(insertIndex, 0, fromId);
       return next;
     });
 
@@ -246,7 +297,10 @@ function App() {
 
     draggedWidgetRef.current = null;
     dragOverWidgetRef.current = null;
+    dragStartRef.current = null;
+    dragMovedRef.current = false;
     setDraggingWidget(null);
+    setDragPosition(null);
   }
 
   function widgetProps(id, extraClass = "") {
@@ -259,7 +313,13 @@ function App() {
         draggingWidget === id ? "is-dragging" : ""
       ].filter(Boolean).join(" "),
       style: {
-        order: currentWidgetOrder.indexOf(id)
+        order: currentWidgetOrder.indexOf(id),
+        ...(draggingWidget === id && dragPosition
+          ? {
+              transform: `translate3d(${dragPosition.x}px, ${dragPosition.y}px, 0)`,
+              zIndex: 1000
+            }
+          : {})
       },
       onPointerDown: (event) => startWidgetDrag(id, event),
       onPointerMove: moveWidgetDrag,
@@ -632,22 +692,36 @@ function App() {
 
         <div className="sidebar-bottom">
           {page === "Domótica" && (
-            <button
-              className={
-                editMode
-                  ? "edit-widgets-btn editing"
-                  : "edit-widgets-btn"
-              }
-              onClick={
-                editMode
-                  ? acceptWidgetEdit
-                  : startWidgetEdit
-              }
-              type="button"
-            >
-              {editMode ? <Check size={19} /> : <Pencil size={19} />}
-              {editMode ? "Aceptar cambios" : "Editar widgets"}
-            </button>
+            editMode ? (
+              <div className="edit-actions">
+                <button
+                  className="edit-widgets-btn editing"
+                  onClick={acceptWidgetEdit}
+                  type="button"
+                >
+                  <Check size={19} />
+                  Aceptar cambios
+                </button>
+
+                <button
+                  className="edit-widgets-btn cancel-edit"
+                  onClick={cancelWidgetEdit}
+                  type="button"
+                >
+                  <X size={19} />
+                  Salir sin guardar
+                </button>
+              </div>
+            ) : (
+              <button
+                className="edit-widgets-btn"
+                onClick={startWidgetEdit}
+                type="button"
+              >
+                <Pencil size={19} />
+                Editar widgets
+              </button>
+            )
           )}
 
           <button
