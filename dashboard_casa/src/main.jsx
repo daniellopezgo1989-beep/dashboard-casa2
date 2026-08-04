@@ -258,9 +258,26 @@ function App() {
             return;
           }
 
-          if (msg.type === "result" && msg.success && msg.result?.events) {
-            setCalendarEvents(msg.result.events);
+          // La suscripción de calendario devuelve los eventos en msg.event.events.
+          if (msg.type === "event" && msg.event?.events) {
+            setCalendarEvents(Array.isArray(msg.event.events) ? msg.event.events : []);
             setCalendarLoading(false);
+            return;
+          }
+
+          if (msg.type === "result" && msg.success && msg.result?.events) {
+            setCalendarEvents(Array.isArray(msg.result.events) ? msg.result.events : []);
+            setCalendarLoading(false);
+            return;
+          }
+
+          // Evita que la interfaz se quede indefinidamente en "Cargando…" si HA responde con error.
+          if (msg.type === "result" && msg.id >= 1000 && !msg.success) {
+            console.error("Error obteniendo calendario:", msg.error);
+            setCalendarEvents([]);
+            setCalendarLoading(false);
+            setMessage("No se pudieron cargar los eventos del calendario");
+            setTimeout(() => setMessage(""), 2500);
             return;
           }
 
@@ -337,24 +354,57 @@ function App() {
   }, [url, token]);
 
   useEffect(() => {
-    if (!connected || !calendarEntity || !wsRef.current) return;
+    if (!connected || !calendarEntity || !token) return;
+
+    let cancelled = false;
     const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
     const end = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
-    setCalendarLoading(true);
-    setCalendarEvents([]);
-    wsRef.current.send(JSON.stringify({
-      id: 1000,
-      type: "calendar/event/subscribe",
-      entity_id: calendarEntity,
-      start: start.toISOString(),
-      end: end.toISOString()
-    }));
-  }, [connected, calendarEntity, calendarMonth]);
+
+    async function loadCalendarEvents() {
+      setCalendarLoading(true);
+      setCalendarEvents([]);
+
+      try {
+        const params = new URLSearchParams({
+          start: start.toISOString(),
+          end: end.toISOString()
+        });
+
+        const response = await fetch(
+          `${url}/api/calendars/${encodeURIComponent(calendarEntity)}?${params.toString()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        if (!cancelled) {
+          setCalendarEvents(Array.isArray(data.events) ? data.events : []);
+        }
+      } catch (error) {
+        console.error("Error cargando eventos del calendario:", error);
+        if (!cancelled) {
+          setCalendarEvents([]);
+          setMessage("No se pudieron cargar los eventos del calendario");
+          setTimeout(() => setMessage(""), 2500);
+        }
+      } finally {
+        if (!cancelled) setCalendarLoading(false);
+      }
+    }
+
+    loadCalendarEvents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, calendarEntity, calendarMonth, token, url]);
 
   async function createCalendarEvent(data) {
     if (!token || !calendarEntity) return false;
+
     try {
-      const response = await fetch(`${url}/api/services/google/create_event`, {
+      const response = await fetch(`${url}/api/services/calendar/create_event`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -365,22 +415,33 @@ function App() {
           ...data
         })
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(`HTTP ${response.status}${text ? `: ${text}` : ""}`);
+      }
+
       setMessage("Evento creado en Google Calendar");
       setCalendarModal(false);
       setTimeout(() => setMessage(""), 2200);
-      setTimeout(() => {
-        if (wsRef.current) {
-          const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
-          const end = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
-          wsRef.current.send(JSON.stringify({ id: 1001, type: "calendar/event/subscribe", entity_id: calendarEntity, start: start.toISOString(), end: end.toISOString() }));
-        }
-      }, 1200);
+
+      // Recarga inmediata del mes actual.
+      const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+      const end = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+      const params = new URLSearchParams({ start: start.toISOString(), end: end.toISOString() });
+      const refresh = await fetch(`${url}/api/calendars/${encodeURIComponent(calendarEntity)}?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (refresh.ok) {
+        const refreshed = await refresh.json();
+        setCalendarEvents(Array.isArray(refreshed.events) ? refreshed.events : []);
+      }
+
       return true;
     } catch (error) {
-      console.error("Error creando evento:", error);
-      setMessage("No se pudo crear el evento");
-      setTimeout(() => setMessage(""), 2500);
+      console.error("No se pudo crear el evento:", error);
+      setMessage("No se pudo crear el evento en Google Calendar");
+      setTimeout(() => setMessage(""), 3000);
       return false;
     }
   }
@@ -499,7 +560,10 @@ function App() {
   ];
 
   return (
-    <div className={fullscreen ? "app fullscreen-app" : "app"}>
+    <div
+      className="app"
+      className={fullscreen ? "app fullscreen-app" : "app"}
+    >
       <aside
         className="sidebar"
       >
