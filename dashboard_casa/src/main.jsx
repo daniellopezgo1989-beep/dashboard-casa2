@@ -78,6 +78,20 @@ function loadConfig() {
   }
 }
 
+// Convierte un color hex (#rrggbb) en un rgba(...) con la opacidad indicada.
+// Se usa para pintar el fondo translúcido de las tiles del menú
+// (estilo "burbuja" del Centro de Control de iOS) sin depender de
+// color-mix(), que no todos los WebViews soportan igual.
+function hexToRgba(hex, alpha) {
+  const clean = hex.replace("#", "");
+  const bigint = parseInt(clean, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function formatElapsed(ms) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSeconds / 3600);
@@ -399,11 +413,11 @@ function App() {
   }
 
   const nav = [
-    ["Domótica", House],
-    ["Tareas", CheckSquare],
-    ["Compra", ShoppingCart],
-    ["Calendario", CalendarDays],
-    ["Ajustes", Settings]
+    ["Domótica", House, "#0a84ff"],
+    ["Tareas", CheckSquare, "#30d158"],
+    ["Compra", ShoppingCart, "#ff9f0a"],
+    ["Calendario", CalendarDays, "#ff375f"],
+    ["Ajustes", Settings, "#8e8e93"]
   ];
 
   return (
@@ -434,19 +448,29 @@ function App() {
           </div>
         </div>
 
-        <nav>
-          {nav.map(([name, Icon]) => (
+        <nav className="cc-nav">
+          {nav.map(([name, Icon, color]) => (
             <button
               key={name}
               className={
                 page === name
-                  ? "nav active"
-                  : "nav"
+                  ? "cc-tile active"
+                  : "cc-tile"
+              }
+              style={
+                page === name
+                  ? {
+                      "--tile-color": color,
+                      "--tile-bg": hexToRgba(color, 0.22)
+                    }
+                  : undefined
               }
               onClick={() => setPage(name)}
             >
-              <Icon size={20} />
-              <span>{name}</span>
+              <span className="cc-tile-icon">
+                <Icon size={20} />
+              </span>
+              <span className="cc-tile-label">{name}</span>
             </button>
           ))}
         </nav>
@@ -523,7 +547,7 @@ function App() {
             width: 44,
             height: 44,
             border: "none",
-            borderRadius: 12,
+            borderRadius: 16,
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
@@ -608,11 +632,31 @@ function App() {
               sub="Sin sensor todavía"
             />
 
-            <section className="card">
+            <section className="card cc-toggle-card">
               <CardHead
                 icon={<Lightbulb />}
                 title="Lámpara"
               />
+
+              <button
+                type="button"
+                className={
+                  lampOn ? "cc-bubble on" : "cc-bubble"
+                }
+                aria-pressed={lampOn}
+                aria-label={
+                  lampOn ? "Apagar lámpara" : "Encender lámpara"
+                }
+                onClick={() =>
+                  callService(
+                    "switch",
+                    lampOn ? "turn_off" : "turn_on",
+                    ENTITIES.lamp
+                  )
+                }
+              >
+                <Lightbulb size={24} />
+              </button>
 
               <div className="control-row">
                 <div
@@ -624,32 +668,13 @@ function App() {
                 />
 
                 <strong>
-                  {lampOn
-                    ? "Encendida"
-                    : "Apagada"}
+                  {lampOn ? "Encendida" : "Apagada"}
                 </strong>
 
-                <button
-                  className={
-                    lampOn
-                      ? "lamp-toggle on"
-                      : "lamp-toggle"
-                  }
-                  onClick={() =>
-                    callService(
-                      "switch",
-                      lampOn
-                        ? "turn_off"
-                        : "turn_on",
-                      ENTITIES.lamp
-                    )
-                  }
-                >
-                  <Power size={14} />
-                  <span>
-                    {lampOn ? "Apagar" : "Encender"}
-                  </span>
-                </button>
+                <span className="cc-tap-hint">
+                  <Power size={13} />
+                  {lampOn ? "Toca para apagar" : "Toca para encender"}
+                </span>
               </div>
             </section>
 
