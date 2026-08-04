@@ -21,7 +21,10 @@ import {
   Sun,
   Moon,
   Maximize,
-  Minimize
+  Minimize,
+  Pencil,
+  Check,
+  GripVertical
 } from "lucide-react";
 import "./styles.css";
 
@@ -117,6 +120,43 @@ function App() {
   const [freezerOpenSince, setFreezerOpenSince] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
   const [fullscreen, setFullscreen] = useState(false);
+
+  const DEFAULT_WIDGET_ORDER = [
+    "temperature",
+    "humidity",
+    "lamp",
+    "freezer",
+    "tv",
+    "blinds",
+    "consumption",
+    "tasks",
+    "calendar"
+  ];
+
+  const savedWidgetOrder = (() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("casa_widget_order") || "null"
+      );
+
+      if (
+        Array.isArray(saved) &&
+        saved.length === DEFAULT_WIDGET_ORDER.length &&
+        DEFAULT_WIDGET_ORDER.every((id) => saved.includes(id))
+      ) {
+        return saved;
+      }
+    } catch {}
+
+    return DEFAULT_WIDGET_ORDER;
+  })();
+
+  const [widgetOrder, setWidgetOrder] = useState(savedWidgetOrder);
+  const [editMode, setEditMode] = useState(false);
+  const [editOrder, setEditOrder] = useState(savedWidgetOrder);
+  const [draggingWidget, setDraggingWidget] = useState(null);
+  const draggedWidgetRef = React.useRef(null);
+  const dragOverWidgetRef = React.useRef(null);
 
   const url = config.url || DEFAULT_URL;
   const token = config.token || "";
@@ -412,206 +452,110 @@ function App() {
     }
   }
 
-  const nav = [
-    ["Domótica", House, "#0a84ff"],
-    ["Tareas", CheckSquare, "#30d158"],
-    ["Compra", ShoppingCart, "#ff9f0a"],
-    ["Calendario", CalendarDays, "#ff375f"],
-    ["Ajustes", Settings, "#8e8e93"]
-  ];
+  function startWidgetEdit() {
+    setEditOrder(widgetOrder);
+    setEditMode(true);
+    draggedWidgetRef.current = null;
+    dragOverWidgetRef.current = null;
+  }
 
-  return (
-    <div
-      className="app"
-      style={
-        fullscreen
-          ? {
-              gridTemplateColumns: "1fr",
-              width: "100vw",
-              minHeight: "100vh"
-            }
-          : undefined
+  function acceptWidgetEdit() {
+    localStorage.setItem(
+      "casa_widget_order",
+      JSON.stringify(editOrder)
+    );
+    setWidgetOrder(editOrder);
+    setEditMode(false);
+    draggedWidgetRef.current = null;
+    dragOverWidgetRef.current = null;
+    setDraggingWidget(null);
+    setMessage("Distribución guardada");
+    setTimeout(() => {
+      setMessage("");
+    }, 1600);
+  }
+
+  function startWidgetDrag(id, event) {
+    if (!editMode) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    draggedWidgetRef.current = id;
+    dragOverWidgetRef.current = id;
+    setDraggingWidget(id);
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+
+  }
+
+  function moveWidgetDrag(event) {
+    if (!editMode || !draggedWidgetRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const target = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest(".dashboard-widget");
+
+    if (!target) {
+      return;
+    }
+
+    const targetId = target.dataset.widgetId;
+
+    if (
+      !targetId ||
+      targetId === draggedWidgetRef.current ||
+      targetId === dragOverWidgetRef.current
+    ) {
+      return;
+    }
+
+    const fromId = draggedWidgetRef.current;
+
+    setEditOrder((previous) => {
+      const next = [...previous];
+      const fromIndex = next.indexOf(fromId);
+      const toIndex = next.indexOf(targetId);
+
+      if (fromIndex === -1 || toIndex === -1) {
+        return previous;
       }
-    >
-      <aside
-        className="sidebar"
-        style={fullscreen ? { display: "none" } : undefined}
-      >
-        <div className="brand">
-          <div className="brand-icon">
-            <House size={22} />
-          </div>
 
-          <div>
-            <b>Mi Casa</b>
-            <span>Dashboard</span>
-          </div>
-        </div>
+      next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, fromId);
 
-        <nav className="cc-nav">
-          {nav.map(([name, Icon, color]) => (
-            <button
-              key={name}
-              className={
-                page === name
-                  ? "cc-tile active"
-                  : "cc-tile"
-              }
-              style={
-                page === name
-                  ? {
-                      "--tile-color": color,
-                      "--tile-bg": hexToRgba(color, 0.22)
-                    }
-                  : undefined
-              }
-              onClick={() => setPage(name)}
-            >
-              <span className="cc-tile-icon">
-                <Icon size={20} />
-              </span>
-              <span className="cc-tile-label">{name}</span>
-            </button>
-          ))}
-        </nav>
+      return next;
+    });
 
-        <div className="sidebar-bottom">
-          <button
-            className="theme-btn"
-            onClick={() => setDark(!dark)}
-          >
-            {dark ? (
-              <Sun size={19} />
-            ) : (
-              <Moon size={19} />
-            )}
+    dragOverWidgetRef.current = targetId;
+  }
 
-            {dark ? "Modo claro" : "Modo oscuro"}
-          </button>
+  function endWidgetDrag(event) {
+    if (!draggedWidgetRef.current) {
+      return;
+    }
 
-          <div
-            className={
-              connected
-                ? "connection ok"
-                : "connection"
-            }
-          >
-            {connected ? (
-              <Wifi size={16} />
-            ) : (
-              <WifiOff size={16} />
-            )}
+    try {
+      if (event?.pointerId != null) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {}
 
-            {connected
-              ? "Conectado"
-              : "Sin conexión"}
-          </div>
-        </div>
-      </aside>
+    draggedWidgetRef.current = null;
+    dragOverWidgetRef.current = null;
+    setDraggingWidget(null);
+  }
 
-      <main
-        style={
-          fullscreen
-            ? {
-                width: "100%",
-                minHeight: "100vh",
-                margin: 0,
-                padding: "20px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center"
-              }
-            : undefined
-        }
-      >
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          aria-label={
-            fullscreen
-              ? "Salir de pantalla completa"
-              : "Entrar en pantalla completa"
-          }
-          title={
-            fullscreen
-              ? "Salir de pantalla completa"
-              : "Pantalla completa"
-          }
-          style={{
-            position: "fixed",
-            top: 16,
-            right: 16,
-            zIndex: 9999,
-            width: 44,
-            height: 44,
-            border: "none",
-            borderRadius: 16,
-            display: "grid",
-            placeItems: "center",
-            cursor: "pointer",
-            background: "var(--card, rgba(20,20,25,.92))",
-            color: "var(--text, currentColor)",
-            boxShadow: "0 8px 24px rgba(0,0,0,.25)",
-            backdropFilter: "blur(10px)"
-          }}
-        >
-          {fullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-        </button>
-
-        <header style={fullscreen ? { display: "none" } : undefined}>
-          <div>
-            <div className="eyebrow">MI CASA</div>
-            <h1>{page}</h1>
-          </div>
-
-          <div className="status-pill">
-            {connected ? (
-              <>
-                <Wifi size={15} />
-                Home Assistant
-              </>
-            ) : (
-              <>
-                <WifiOff size={15} />
-                Configura HA
-              </>
-            )}
-          </div>
-        </header>
-
-        {message && (
-          <div className="toast">
-            {message}
-          </div>
-        )}
-
-        {page === "Domótica" && (
-          <section
-            className="grid"
-            style={
-              fullscreen
-                ? {
-                    position: "fixed",
-                    left: "50%",
-                    top: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "min(92vw, 1000px)",
-                    maxWidth: "1000px",
-                    maxHeight: "88vh",
-                    overflowY: "auto",
-                    margin: 0,
-                    zIndex: 10
-                  }
-                : undefined
-            }
-          >
-
-            {/* =========================
-                FILA 1: cuatro tarjetas
-            ========================= */}
-
+  const dashboardWidgets = {
+    temperature: (
             <Card
               title="Temperatura"
               icon={
@@ -621,7 +565,8 @@ function App() {
               value="—"
               sub="Sin sensor todavía"
             />
-
+    ),
+    humidity: (
             <Card
               title="Humedad"
               icon={
@@ -631,7 +576,8 @@ function App() {
               value="—"
               sub="Sin sensor todavía"
             />
-
+    ),
+    lamp: (
             <section className="card cc-toggle-card">
               <CardHead
                 icon={<Lightbulb />}
@@ -687,11 +633,8 @@ function App() {
                 freezerOpen
                   ? "card freezer-card open"
                   : "card freezer-card"
-              }
-            >
-              <CardHead
-                icon={<Snowflake />}
-                title="Congelador"
+    ),
+    freezer: (
                 right={
                   freezerOpen
                     ? "ATENCIÓN"
@@ -739,16 +682,13 @@ function App() {
                 FILA 2: TV SALÓN
             ========================= */}
 
-            <section className="card wide">
+            <section className="card">
               <CardHead
                 icon={<Tv />}
                 title="TV salón"
               />
-
-              <div className="button-grid">
-
-                <ActionButton
-                  className="app-tv cine"
+    ),
+    tv: (
                   icon={
                     <AppIcon
                       slug={ICON_SLUGS.cine}
@@ -944,16 +884,13 @@ function App() {
                 FILA 3: Persianas + Consumo
             ========================= */}
 
-            <section className="card half">
+            <section className="card">
               <CardHead
                 icon={<Blinds />}
                 title="Persianas"
                 right="Próximamente"
-              />
-
-              <div className="blind">
-                <div>
-                  <b>Salón</b>
+    ),
+    blinds: (
                   <span>
                     Sin entidad todavía
                   </span>
@@ -984,7 +921,7 @@ function App() {
               </div>
             </section>
 
-            <section className="card half">
+            <section className="card">
               <CardHead
                 icon={<Zap />}
                 title="Consumo lámpara"
@@ -993,7 +930,8 @@ function App() {
 
               <div className="stats">
                 <Stat
-                  label="Ahora"
+    ),
+    consumption: (
                   value={
                     power
                       ? `${power} W`
@@ -1055,12 +993,9 @@ function App() {
                 Home Assistant.
               </p>
             </section>
-
-            {/* =========================
-                FILA 4: Tareas + Calendario
-            ========================= */}
-
-            <section className="card half">
+    ),
+    tasks: (
+            <section className="card">
               <CardHead
                 icon={<CheckSquare />}
                 title="Tareas"
@@ -1071,8 +1006,9 @@ function App() {
                 tareas pendientes.
               </p>
             </section>
-
-            <section className="card half">
+    ),
+    calendar: (
+            <section className="card">
               <CardHead
                 icon={<CalendarDays />}
                 title="Calendario"
@@ -1083,7 +1019,257 @@ function App() {
                 próximos eventos.
               </p>
             </section>
+    )
+  };
 
+  return (
+    <div
+      className="app"
+      style={
+        fullscreen
+          ? {
+              gridTemplateColumns: "1fr",
+              width: "100vw",
+              minHeight: "100vh"
+            }
+          : undefined
+      }
+    >
+      <aside
+        className="sidebar"
+        style={fullscreen ? { display: "none" } : undefined}
+      >
+        <div className="brand">
+          <div className="brand-icon">
+            <House size={22} />
+          </div>
+
+          <div>
+            <b>Mi Casa</b>
+            <span>Dashboard</span>
+          </div>
+        </div>
+
+        <nav className="cc-nav">
+          {nav.map(([name, Icon, color]) => (
+            <button
+              key={name}
+              className={
+                page === name
+                  ? "cc-tile active"
+                  : "cc-tile"
+              }
+              style={
+                page === name
+                  ? {
+                      "--tile-color": color,
+                      "--tile-bg": hexToRgba(color, 0.22)
+                    }
+                  : undefined
+              }
+              onClick={() => setPage(name)}
+            >
+              <span className="cc-tile-icon">
+                <Icon size={20} />
+              </span>
+              <span className="cc-tile-label">{name}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          {page === "Domótica" && (
+            <button
+              className={
+                editMode
+                  ? "edit-widgets-btn editing"
+                  : "edit-widgets-btn"
+              }
+              onClick={
+                editMode
+                  ? acceptWidgetEdit
+                  : startWidgetEdit
+              }
+              type="button"
+            >
+              {editMode ? (
+                <Check size={19} />
+              ) : (
+                <Pencil size={19} />
+              )}
+
+              {editMode
+                ? "Aceptar cambios"
+                : "Editar widgets"}
+            </button>
+          )}
+
+          <button
+            className="theme-btn"
+            onClick={() => setDark(!dark)}
+          >
+            {dark ? (
+              <Sun size={19} />
+            ) : (
+              <Moon size={19} />
+            )}
+
+            {dark ? "Modo claro" : "Modo oscuro"}
+          </button>
+
+          <div
+            className={
+              connected
+                ? "connection ok"
+                : "connection"
+            }
+          >
+            {connected ? (
+              <Wifi size={16} />
+            ) : (
+              <WifiOff size={16} />
+            )}
+
+            {connected
+              ? "Conectado"
+              : "Sin conexión"}
+          </div>
+        </div>
+      </aside>
+
+      <main
+        style={
+          fullscreen
+            ? {
+                width: "100%",
+                minHeight: "100vh",
+                margin: 0,
+                padding: "20px",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center"
+              }
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          aria-label={
+            fullscreen
+              ? "Salir de pantalla completa"
+              : "Entrar en pantalla completa"
+          }
+          title={
+            fullscreen
+              ? "Salir de pantalla completa"
+              : "Pantalla completa"
+          }
+          style={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 9999,
+            width: 44,
+            height: 44,
+            border: "none",
+            borderRadius: 16,
+            display: "grid",
+            placeItems: "center",
+            cursor: "pointer",
+            background: "var(--card, rgba(20,20,25,.92))",
+            color: "var(--text, currentColor)",
+            boxShadow: "0 8px 24px rgba(0,0,0,.25)",
+            backdropFilter: "blur(10px)"
+          }}
+        >
+          {fullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+        </button>
+
+        <header style={fullscreen ? { display: "none" } : undefined}>
+          <div>
+            <div className="eyebrow">MI CASA</div>
+            <h1>{page}</h1>
+          </div>
+
+          <div className="status-pill">
+            {connected ? (
+              <>
+                <Wifi size={15} />
+                Home Assistant
+              </>
+            ) : (
+              <>
+                <WifiOff size={15} />
+                Configura HA
+              </>
+            )}
+          </div>
+        </header>
+
+        {message && (
+          <div className="toast">
+            {message}
+          </div>
+        )}
+
+        {page === "Domótica" && (
+          <section
+            className="grid"
+            style={
+              fullscreen
+                ? {
+                    position: "fixed",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "min(92vw, 1000px)",
+                    maxWidth: "1000px",
+                    maxHeight: "88vh",
+                    overflowY: "auto",
+                    margin: 0,
+                    zIndex: 10
+                  }
+                : undefined
+            }
+          >
+
+            {editMode && (
+              <div className="edit-mode-hint">
+                <GripVertical size={15} />
+                Arrastra las tarjetas para cambiar su posición
+              </div>
+            )}
+
+            {(editMode ? editOrder : widgetOrder).map((id) => (
+              <div
+                key={id}
+                data-widget-id={id}
+                className={`dashboard-widget widget-${id}${
+                  id === "tv"
+                    ? " wide"
+                    : ["blinds", "consumption", "tasks", "calendar"].includes(id)
+                      ? " half"
+                      : ""
+                }${editMode ? " edit-mode" : ""}${
+                  draggingWidget === id ? " is-dragging" : ""
+                }`}
+                onPointerDown={(event) => startWidgetDrag(id, event)}
+                onPointerMove={moveWidgetDrag}
+                onPointerUp={endWidgetDrag}
+                onPointerCancel={endWidgetDrag}
+                onClickCapture={(event) => {
+                  if (editMode) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                }}
+              >
+                {dashboardWidgets[id]}
+              </div>
+            ))}
           </section>
         )}
 
