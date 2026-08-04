@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   House,
@@ -22,10 +22,10 @@ import {
   Moon,
   Maximize,
   Minimize,
-  Pencil,
-  Check,
-  X,
-  GripVertical
+  ChevronLeft,
+  ChevronDown,
+  Plus,
+  X
 } from "lucide-react";
 import "./styles.css";
 
@@ -121,218 +121,14 @@ function App() {
   const [freezerOpenSince, setFreezerOpenSince] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
   const [fullscreen, setFullscreen] = useState(false);
+  const wsRef = useRef(null);
+  const [calendarEntities, setCalendarEntities] = useState([]);
+  const [calendarEntity, setCalendarEntity] = useState("");
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarModal, setCalendarModal] = useState(false);
 
-  const DEFAULT_WIDGET_ORDER = [
-    "temperature",
-    "humidity",
-    "lamp",
-    "freezer",
-    "tv",
-    "blinds",
-    "consumption",
-    "tasks",
-    "calendar"
-  ];
-
-  const [widgetOrder, setWidgetOrder] = useState(() => {
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem("casa_widget_order") || "null"
-      );
-
-      if (
-        Array.isArray(saved) &&
-        saved.length === DEFAULT_WIDGET_ORDER.length &&
-        DEFAULT_WIDGET_ORDER.every((id) => saved.includes(id))
-      ) {
-        return saved;
-      }
-    } catch {}
-
-    return DEFAULT_WIDGET_ORDER;
-  });
-
-  const [editMode, setEditMode] = useState(false);
-  const [editOrder, setEditOrder] = useState(DEFAULT_WIDGET_ORDER);
-  const [draggingWidget, setDraggingWidget] = useState(null);
-  const [dragPosition, setDragPosition] = useState(null);
-  const dragStartRef = useRef(null);
-  const dragMovedRef = useRef(false);
-
-  const draggedWidgetRef = useRef(null);
-  const dragOverWidgetRef = useRef(null);
-
-  const currentWidgetOrder = editMode ? editOrder : widgetOrder;
-
-  function startWidgetEdit() {
-    setEditOrder(widgetOrder);
-    setEditMode(true);
-    draggedWidgetRef.current = null;
-    dragOverWidgetRef.current = null;
-  }
-
-  function acceptWidgetEdit() {
-    localStorage.setItem(
-      "casa_widget_order",
-      JSON.stringify(editOrder)
-    );
-    setWidgetOrder(editOrder);
-    setEditMode(false);
-    draggedWidgetRef.current = null;
-    dragOverWidgetRef.current = null;
-    setDraggingWidget(null);
-    setDragPosition(null);
-    dragStartRef.current = null;
-
-    setMessage("Distribución guardada");
-    setTimeout(() => setMessage(""), 1600);
-  }
-
-  function cancelWidgetEdit() {
-    setEditOrder(widgetOrder);
-    setEditMode(false);
-    draggedWidgetRef.current = null;
-    dragOverWidgetRef.current = null;
-    dragStartRef.current = null;
-    setDraggingWidget(null);
-    setDragPosition(null);
-  }
-
-  function startWidgetDrag(id, event) {
-    if (!editMode) return;
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const rect = event.currentTarget.getBoundingClientRect();
-
-    draggedWidgetRef.current = id;
-    dragOverWidgetRef.current = id;
-    dragMovedRef.current = false;
-    dragStartRef.current = {
-      pointerX: event.clientX,
-      pointerY: event.clientY,
-      left: rect.left,
-      top: rect.top
-    };
-
-    setDraggingWidget(id);
-    setDragPosition({
-      width: rect.width,
-      height: rect.height,
-      x: 0,
-      y: 0
-    });
-
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {}
-  }
-
-  function moveWidgetDrag(event) {
-    if (!editMode || !draggedWidgetRef.current || !dragStartRef.current) return;
-
-    event.preventDefault();
-
-    const start = dragStartRef.current;
-    const x = event.clientX - start.pointerX;
-    const y = event.clientY - start.pointerY;
-
-    if (Math.abs(x) > 4 || Math.abs(y) > 4) {
-      dragMovedRef.current = true;
-    }
-
-    setDragPosition((previous) =>
-      previous
-        ? { ...previous, x, y }
-        : previous
-    );
-
-    // Mientras mantienes pulsado, buscamos la tarjeta que está físicamente
-    // debajo del dedo/ratón y vamos desplazando el elemento arrastrado
-    // dentro del orden del grid.
-    const target = document
-      .elementsFromPoint(event.clientX, event.clientY)
-      .map((element) => element.closest?.(".dashboard-widget"))
-      .find((element) => element && element.dataset.widgetId !== draggedWidgetRef.current);
-
-    if (!target) return;
-
-    const targetId = target.dataset.widgetId;
-    const fromId = draggedWidgetRef.current;
-
-    if (!targetId || targetId === fromId || targetId === dragOverWidgetRef.current) {
-      return;
-    }
-
-    const rect = target.getBoundingClientRect();
-    const before = event.clientY < rect.top + rect.height / 2;
-
-    setEditOrder((previous) => {
-      const next = [...previous];
-      const fromIndex = next.indexOf(fromId);
-      const targetIndex = next.indexOf(targetId);
-
-      if (fromIndex === -1 || targetIndex === -1) return previous;
-
-      next.splice(fromIndex, 1);
-      const newTargetIndex = next.indexOf(targetId);
-      const insertIndex = before ? newTargetIndex : newTargetIndex + 1;
-      next.splice(insertIndex, 0, fromId);
-      return next;
-    });
-
-    dragOverWidgetRef.current = targetId;
-  }
-
-  function endWidgetDrag(event) {
-    if (!draggedWidgetRef.current) return;
-
-    try {
-      if (event?.pointerId != null) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-    } catch {}
-
-    draggedWidgetRef.current = null;
-    dragOverWidgetRef.current = null;
-    dragStartRef.current = null;
-    dragMovedRef.current = false;
-    setDraggingWidget(null);
-    setDragPosition(null);
-  }
-
-  function widgetProps(id, extraClass = "") {
-    return {
-      "data-widget-id": id,
-      className: [
-        "dashboard-widget",
-        extraClass,
-        editMode ? "edit-mode" : "",
-        draggingWidget === id ? "is-dragging" : ""
-      ].filter(Boolean).join(" "),
-      style: {
-        order: currentWidgetOrder.indexOf(id),
-        ...(draggingWidget === id && dragPosition
-          ? {
-              transform: `translate3d(${dragPosition.x}px, ${dragPosition.y}px, 0)`,
-              zIndex: 1000
-            }
-          : {})
-      },
-      onPointerDown: (event) => startWidgetDrag(id, event),
-      onPointerMove: moveWidgetDrag,
-      onPointerUp: endWidgetDrag,
-      onPointerCancel: endWidgetDrag,
-      onClickCapture: (event) => {
-        if (editMode) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      }
-    };
-  }
   const url = config.url || DEFAULT_URL;
   const token = config.token || "";
 
@@ -388,6 +184,7 @@ function App() {
     try {
       const wsUrl = url.replace(/^http/, "ws") + "/api/websocket";
       ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
       ws.onopen = () => {
         console.log("WebSocket conectado");
@@ -442,6 +239,15 @@ function App() {
 
             if (alive) {
               setStates(map);
+              const calendars = msg.result
+                .filter((entity) => entity.entity_id.startsWith("calendar."))
+                .map((entity) => ({
+                  entity_id: entity.entity_id,
+                  name: entity.attributes?.friendly_name || entity.entity_id.replace("calendar.", "")
+                }))
+                .sort((a, b) => a.name.localeCompare(b.name, "es"));
+              setCalendarEntities(calendars);
+              setCalendarEntity((current) => current || calendars[0]?.entity_id || "");
             }
 
             return;
@@ -449,6 +255,12 @@ function App() {
 
           if (msg.id === 2 && msg.success) {
             console.log("Suscripción a cambios activa");
+            return;
+          }
+
+          if (msg.type === "result" && msg.success && msg.result?.events) {
+            setCalendarEvents(msg.result.events);
+            setCalendarLoading(false);
             return;
           }
 
@@ -490,6 +302,7 @@ function App() {
       };
 
       ws.onclose = () => {
+        if (wsRef.current === ws) wsRef.current = null;
         console.log("WebSocket cerrado");
 
         if (alive) {
@@ -517,10 +330,60 @@ function App() {
       alive = false;
 
       try {
+        if (wsRef.current === ws) wsRef.current = null;
         ws?.close();
       } catch {}
     };
   }, [url, token]);
+
+  useEffect(() => {
+    if (!connected || !calendarEntity || !wsRef.current) return;
+    const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const end = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+    setCalendarLoading(true);
+    setCalendarEvents([]);
+    wsRef.current.send(JSON.stringify({
+      id: 1000,
+      type: "calendar/event/subscribe",
+      entity_id: calendarEntity,
+      start: start.toISOString(),
+      end: end.toISOString()
+    }));
+  }, [connected, calendarEntity, calendarMonth]);
+
+  async function createCalendarEvent(data) {
+    if (!token || !calendarEntity) return false;
+    try {
+      const response = await fetch(`${url}/api/services/google/create_event`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          entity_id: calendarEntity,
+          ...data
+        })
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setMessage("Evento creado en Google Calendar");
+      setCalendarModal(false);
+      setTimeout(() => setMessage(""), 2200);
+      setTimeout(() => {
+        if (wsRef.current) {
+          const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+          const end = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+          wsRef.current.send(JSON.stringify({ id: 1001, type: "calendar/event/subscribe", entity_id: calendarEntity, start: start.toISOString(), end: end.toISOString() }));
+        }
+      }, 1200);
+      return true;
+    } catch (error) {
+      console.error("Error creando evento:", error);
+      setMessage("No se pudo crear el evento");
+      setTimeout(() => setMessage(""), 2500);
+      return false;
+    }
+  }
 
   const state = (entityId) => {
     return states[entityId]?.state;
@@ -636,21 +499,9 @@ function App() {
   ];
 
   return (
-    <div
-      className="app"
-      style={
-        fullscreen
-          ? {
-              gridTemplateColumns: "1fr",
-              width: "100vw",
-              minHeight: "100vh"
-            }
-          : undefined
-      }
-    >
+    <div className={fullscreen ? "app fullscreen-app" : "app"}>
       <aside
         className="sidebar"
-        style={fullscreen ? { display: "none" } : undefined}
       >
         <div className="brand">
           <div className="brand-icon">
@@ -691,39 +542,6 @@ function App() {
         </nav>
 
         <div className="sidebar-bottom">
-          {page === "Domótica" && (
-            editMode ? (
-              <div className="edit-actions">
-                <button
-                  className="edit-widgets-btn editing"
-                  onClick={acceptWidgetEdit}
-                  type="button"
-                >
-                  <Check size={19} />
-                  Aceptar cambios
-                </button>
-
-                <button
-                  className="edit-widgets-btn cancel-edit"
-                  onClick={cancelWidgetEdit}
-                  type="button"
-                >
-                  <X size={19} />
-                  Salir sin guardar
-                </button>
-              </div>
-            ) : (
-              <button
-                className="edit-widgets-btn"
-                onClick={startWidgetEdit}
-                type="button"
-              >
-                <Pencil size={19} />
-                Editar widgets
-              </button>
-            )
-          )}
-
           <button
             className="theme-btn"
             onClick={() => setDark(!dark)}
@@ -757,23 +575,7 @@ function App() {
         </div>
       </aside>
 
-      <main
-        style={
-          fullscreen
-            ? {
-                width: "100%",
-                minHeight: "100vh",
-                margin: 0,
-                padding: "20px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center"
-              }
-            : undefined
-        }
-      >
+      <main className={fullscreen ? "fullscreen-main" : ""}>
         <button
           type="button"
           onClick={toggleFullscreen}
@@ -808,7 +610,7 @@ function App() {
           {fullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
         </button>
 
-        <header style={fullscreen ? { display: "none" } : undefined}>
+        <header>
           <div>
             <div className="eyebrow">MI CASA</div>
             <h1>{page}</h1>
@@ -837,62 +639,34 @@ function App() {
 
         {page === "Domótica" && (
           <section
-            className="grid"
-            style={
-              fullscreen
-                ? {
-                    position: "fixed",
-                    left: "50%",
-                    top: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "min(92vw, 1000px)",
-                    maxWidth: "1000px",
-                    maxHeight: "88vh",
-                    overflowY: "auto",
-                    margin: 0,
-                    zIndex: 10
-                  }
-                : undefined
-            }
+            className={fullscreen ? "grid fullscreen-grid" : "grid"}
           >
-
-            {editMode && (
-              <div className="edit-mode-hint">
-                <GripVertical size={15} />
-                Arrastra las tarjetas para cambiar su posición
-              </div>
-            )}
 
             {/* =========================
                 FILA 1: cuatro tarjetas
             ========================= */}
 
-            <div {...widgetProps("temperature")}>
-              <Card
-                title="Temperatura"
+            <Card
+              title="Temperatura"
               icon={
                 <span className="emoji">🌡️</span>
               }
               muted
               value="—"
-                sub="Sin sensor todavía"
-              />
-            </div>
+              sub="Sin sensor todavía"
+            />
 
-            <div {...widgetProps("humidity")}>
-              <Card
-                title="Humedad"
+            <Card
+              title="Humedad"
               icon={
                 <span className="emoji">💧</span>
               }
               muted
               value="—"
-                sub="Sin sensor todavía"
-              />
-            </div>
+              sub="Sin sensor todavía"
+            />
 
-            <div {...widgetProps("lamp")}>
-              <section className="card cc-toggle-card">
+            <section className="card cc-toggle-card">
               <CardHead
                 icon={<Lightbulb />}
                 title="Lámpara"
@@ -935,22 +709,20 @@ function App() {
                   <Power size={13} />
                   {lampOn ? "Toca para apagar" : "Toca para encender"}
                 </span>
-                </div>
-              </section>
-            </div>
+              </div>
+            </section>
 
             {/* =========================
                 CONGELADOR
             ========================= */}
 
-            <div {...widgetProps("freezer")}>
-              <section
-                className={
-                  freezerOpen
-                    ? "card freezer-card open"
-                    : "card freezer-card"
-                }
-              >
+            <section
+              className={
+                freezerOpen
+                  ? "card freezer-card open"
+                  : "card freezer-card"
+              }
+            >
               <CardHead
                 icon={<Snowflake />}
                 title="Congelador"
@@ -994,17 +766,15 @@ function App() {
                     )}
                   </div>
                 </>
-                )}
-              </section>
-            </div>
+              )}
+            </section>
 
             {/* =========================
                 FILA 2: TV SALÓN
             ========================= */}
 
-            <div {...widgetProps("tv", "wide")}>
-              <section className="card wide">
-                <CardHead
+            <section className="card wide">
+              <CardHead
                 icon={<Tv />}
                 title="TV salón"
               />
@@ -1201,18 +971,16 @@ function App() {
                   }
                 />
 
-                </div>
-              </section>
-            </div>
+              </div>
+            </section>
 
             {/* =========================
                 FILA 3: Persianas + Consumo
             ========================= */}
 
-            <div {...widgetProps("blinds", "half")}>
-              <section className="card half">
-                <CardHead
-                  icon={<Blinds />}
+            <section className="card half">
+              <CardHead
+                icon={<Blinds />}
                 title="Persianas"
                 right="Próximamente"
               />
@@ -1247,14 +1015,12 @@ function App() {
                   <button disabled>■</button>
                   <button disabled>↓</button>
                 </div>
-                </div>
-              </section>
-            </div>
+              </div>
+            </section>
 
-            <div {...widgetProps("consumption", "half")}>
-              <section className="card half">
-                <CardHead
-                  icon={<Zap />}
+            <section className="card half">
+              <CardHead
+                icon={<Zap />}
                 title="Consumo lámpara"
                 right={`${price.toFixed(3)} €/kWh`}
               />
@@ -1321,41 +1087,36 @@ function App() {
                 El histórico de ayer se añadirá
                 usando las estadísticas de
                 Home Assistant.
-                </p>
-              </section>
-            </div>
+              </p>
+            </section>
 
             {/* =========================
                 FILA 4: Tareas + Calendario
             ========================= */}
 
-            <div {...widgetProps("tasks", "half")}>
-              <section className="card half">
-                <CardHead
-                  icon={<CheckSquare />}
+            <section className="card half">
+              <CardHead
+                icon={<CheckSquare />}
                 title="Tareas"
               />
 
               <p className="muted">
                 Próximamente aquí verás tus
                 tareas pendientes.
-                </p>
-              </section>
-            </div>
+              </p>
+            </section>
 
-            <div {...widgetProps("calendar", "half")}>
-              <section className="card half">
-                <CardHead
-                  icon={<CalendarDays />}
+            <section className="card half">
+              <CardHead
+                icon={<CalendarDays />}
                 title="Calendario"
               />
 
               <p className="muted">
                 Próximamente aquí verás tus
                 próximos eventos.
-                </p>
-              </section>
-            </div>
+              </p>
+            </section>
 
           </section>
         )}
@@ -1377,10 +1138,19 @@ function App() {
         )}
 
         {page === "Calendario" && (
-          <Placeholder
-            icon={<CalendarDays />}
-            title="Calendario"
-            text="Preparado para integrar tus calendarios de Home Assistant."
+          <CalendarPage
+            connected={connected}
+            calendarEntities={calendarEntities}
+            calendarEntity={calendarEntity}
+            setCalendarEntity={setCalendarEntity}
+            calendarMonth={calendarMonth}
+            setCalendarMonth={setCalendarMonth}
+            calendarEvents={calendarEvents}
+            calendarLoading={calendarLoading}
+            onAdd={() => setCalendarModal(true)}
+            calendarModal={calendarModal}
+            setCalendarModal={setCalendarModal}
+            onCreate={createCalendarEvent}
           />
         )}
 
@@ -1547,6 +1317,161 @@ function Stat({
       <strong>{value}</strong>
     </div>
   );
+}
+
+
+function CalendarPage({
+  connected,
+  calendarEntities,
+  calendarEntity,
+  setCalendarEntity,
+  calendarMonth,
+  setCalendarMonth,
+  calendarEvents,
+  calendarLoading,
+  onAdd,
+  calendarModal,
+  setCalendarModal,
+  onCreate
+}) {
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const mondayOffset = (firstDay.getDay() + 6) % 7;
+  const totalCells = Math.ceil((mondayOffset + daysInMonth) / 7) * 7;
+  const cells = Array.from({ length: totalCells }, (_, index) => {
+    const day = index - mondayOffset + 1;
+    return day >= 1 && day <= daysInMonth ? new Date(year, month, day) : null;
+  });
+
+  const monthName = calendarMonth.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  const eventDate = (value) => {
+    if (!value) return null;
+    const d = value.length === 10 ? new Date(`${value}T00:00:00`) : new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const eventsForDay = (date) => calendarEvents.filter((event) => {
+    const start = eventDate(event.start);
+    const end = eventDate(event.end);
+    if (!start || !end) return false;
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+    return start < dayEnd && end > dayStart;
+  });
+  const formatEventTime = (event) => {
+    const start = eventDate(event.start);
+    if (!start || event.start?.length === 10) return "Todo el día";
+    return start.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <section className="calendar-page">
+      <div className="calendar-toolbar">
+        <div>
+          <div className="eyebrow">GOOGLE CALENDAR</div>
+          <h2 className="calendar-title">{monthName.charAt(0).toUpperCase() + monthName.slice(1)}</h2>
+        </div>
+        <div className="calendar-actions">
+          {calendarEntities.length > 0 && (
+            <label className="calendar-select-wrap">
+              <CalendarDays size={17} />
+              <select value={calendarEntity} onChange={(e) => setCalendarEntity(e.target.value)}>
+                {calendarEntities.map((calendar) => <option key={calendar.entity_id} value={calendar.entity_id}>{calendar.name}</option>)}
+              </select>
+              <ChevronDown size={15} />
+            </label>
+          )}
+          <button className="calendar-nav-btn" onClick={() => setCalendarMonth(new Date(year, month - 1, 1))} title="Mes anterior"><ChevronLeft size={19} /></button>
+          <button className="calendar-today" onClick={() => setCalendarMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
+          <button className="calendar-nav-btn" onClick={() => setCalendarMonth(new Date(year, month + 1, 1))} title="Mes siguiente"><ChevronRight size={19} /></button>
+          <button className="calendar-add" onClick={onAdd} disabled={!connected || !calendarEntity}><Plus size={17} /> Nuevo evento</button>
+        </div>
+      </div>
+
+      {!connected && <div className="calendar-empty">Conecta Home Assistant para cargar tus calendarios de Google.</div>}
+      {connected && calendarEntities.length === 0 && <div className="calendar-empty">No se ha encontrado ningún calendario de Google.</div>}
+
+      {connected && calendarEntities.length > 0 && (
+        <div className="calendar-shell">
+          <div className="calendar-weekdays">{["L", "M", "X", "J", "V", "S", "D"].map((day) => <div key={day}>{day}</div>)}</div>
+          <div className="calendar-grid">
+            {cells.map((date, index) => {
+              const events = date ? eventsForDay(date) : [];
+              const today = date && new Date().toDateString() === date.toDateString();
+              return (
+                <div className={date ? `calendar-day${today ? " today" : ""}` : "calendar-day outside"} key={index}>
+                  {date && <div className="calendar-day-number">{date.getDate()}</div>}
+                  <div className="calendar-events">
+                    {events.slice(0, 4).map((event, eventIndex) => (
+                      <div className="calendar-event" key={`${event.summary}-${event.start}-${eventIndex}`} title={event.description || event.summary}>
+                        <span className="calendar-event-dot" />
+                        <span className="calendar-event-time">{formatEventTime(event)}</span>
+                        <span className="calendar-event-title">{event.summary}</span>
+                      </div>
+                    ))}
+                    {events.length > 4 && <div className="calendar-more">+{events.length - 4} más</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {calendarLoading && <div className="calendar-loading">Cargando eventos…</div>}
+        </div>
+      )}
+
+      <div className="calendar-note">
+        <CalendarDays size={16} /> Los eventos se leen directamente desde Home Assistant/Google Calendar.
+      </div>
+
+      {calendarModal && <CreateEventModal onClose={() => setCalendarModal(false)} onCreate={onCreate} />}
+    </section>
+  );
+}
+
+function CreateEventModal({ onClose, onCreate }) {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateValue = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const [summary, setSummary] = useState("");
+  const [date, setDate] = useState(dateValue);
+  const [start, setStart] = useState("10:00");
+  const [end, setEnd] = useState("11:00");
+  const [allDay, setAllDay] = useState(false);
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!summary.trim()) return;
+    setSaving(true);
+    const result = allDay
+      ? await onCreate({ summary: summary.trim(), description, location, start_date: date, end_date: addOneDay(date) })
+      : await onCreate({ summary: summary.trim(), description, location, start_date_time: `${date} ${start}:00`, end_date_time: `${date} ${end}:00` });
+    setSaving(false);
+    if (!result) return;
+  }
+
+  return (
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <form className="event-modal" onSubmit={submit}>
+        <div className="event-modal-head"><div><div className="eyebrow">GOOGLE CALENDAR</div><h3>Nuevo evento</h3></div><button type="button" className="modal-close" onClick={onClose}><X size={19} /></button></div>
+        <label>Título<input autoFocus value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="Título del evento" /></label>
+        <div className="event-form-row"><label>Fecha<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label><label className="all-day-label"><span>Todo el día</span><input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /></label></div>
+        {!allDay && <div className="event-form-row"><label>Inicio<input type="time" value={start} onChange={(e) => setStart(e.target.value)} /></label><label>Fin<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></label></div>}
+        <label>Ubicación<input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Opcional" /></label>
+        <label>Descripción<textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional" rows="3" /></label>
+        <div className="event-modal-actions"><button type="button" className="modal-cancel" onClick={onClose}>Cancelar</button><button type="submit" className="calendar-add" disabled={saving || !summary.trim()}>{saving ? "Guardando…" : "Guardar evento"}</button></div>
+      </form>
+    </div>
+  );
+}
+
+function addOneDay(dateString) {
+  const d = new Date(`${dateString}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function Placeholder({
