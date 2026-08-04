@@ -104,33 +104,74 @@ input{
   margin-top:2px
 }
 
-nav{
-  display:flex;
-  flex-direction:column;
-  gap:4px
+/* =========================================================
+   MENÚ — TILES ESTILO CENTRO DE CONTROL
+   ========================================================= */
+
+.cc-nav{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px
 }
 
-.nav{
+.cc-tile{
   border:0;
-  background:transparent;
+  background:rgba(120,120,128,.16);
   color:var(--text);
   display:flex;
+  flex-direction:column;
   align-items:center;
-  gap:12px;
-  padding:12px;
-  border-radius:12px;
-  text-align:left;
-  cursor:pointer
+  justify-content:center;
+  gap:8px;
+  padding:16px 8px;
+  border-radius:20px;
+  text-align:center;
+  cursor:pointer;
+  aspect-ratio:1;
+  transition:
+    background .2s ease,
+    transform .15s ease
 }
 
-.nav:hover{
-  background:rgba(120,120,128,.12)
+.cc-tile:hover{
+  background:rgba(120,120,128,.24);
+  transform:translateY(-1px)
 }
 
-.nav.active{
-  background:rgba(0,122,255,.12);
-  color:var(--blue);
-  font-weight:600
+.cc-tile:active{
+  transform:scale(.97)
+}
+
+.cc-tile-icon{
+  width:36px;
+  height:36px;
+  border-radius:11px;
+  display:grid;
+  place-items:center;
+  background:rgba(255,255,255,.08);
+  color:var(--muted);
+  transition:background .2s ease, color .2s ease
+}
+
+.cc-tile-label{
+  font-size:11.5px;
+  font-weight:600;
+  color:var(--muted);
+  line-height:1.15
+}
+
+.cc-tile.active{
+  background:var(--tile-bg, rgba(10,132,255,.2))
+}
+
+.cc-tile.active .cc-tile-icon{
+  background:var(--tile-color, var(--blue));
+  color:#fff;
+  box-shadow:0 6px 16px rgba(0,0,0,.25)
+}
+
+.cc-tile.active .cc-tile-label{
+  color:var(--text)
 }
 
 .sidebar-bottom{
@@ -139,19 +180,21 @@ nav{
 
 .theme-btn{
   border:0;
-  background:transparent;
+  background:rgba(120,120,128,.16);
   color:var(--text);
   display:flex;
   gap:10px;
   align-items:center;
-  padding:12px;
+  padding:13px 14px;
   width:100%;
   cursor:pointer;
-  border-radius:12px
+  border-radius:16px;
+  margin-top:14px;
+  transition:background .2s ease
 }
 
 .theme-btn:hover{
-  background:rgba(120,120,128,.12)
+  background:rgba(120,120,128,.26)
 }
 
 .connection{
@@ -160,7 +203,7 @@ nav{
   align-items:center;
   color:var(--muted);
   font-size:12px;
-  padding:12px
+  padding:12px 14px
 }
 
 .connection.ok{
@@ -225,7 +268,7 @@ h1{
   backdrop-filter:blur(20px) saturate(140%);
   -webkit-backdrop-filter:blur(20px) saturate(140%);
   border:1px solid var(--line);
-  border-radius:22px;
+  border-radius:26px;
   padding:22px;
   box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.08)
 }
@@ -466,46 +509,57 @@ h1{
 }
 
 /* =========================================================
-   BOTÓN LÁMPARA
+   BURBUJA LÁMPARA — ESTILO CENTRO DE CONTROL
    ========================================================= */
 
-.lamp-toggle{
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.05);
+.cc-toggle-card .card-head{
+  margin-bottom:16px
+}
+
+.cc-bubble{
+  border:0;
+  width:64px;
+  height:64px;
+  border-radius:20px;
+  background:rgba(120,120,128,.16);
   color:var(--muted);
-  height:32px;
-  padding:0 14px;
-  border-radius:9px;
-  display:inline-flex;
-  align-items:center;
-  gap:7px;
-  font-size:12px;
-  font-weight:600;
-  letter-spacing:.01em;
+  display:grid;
+  place-items:center;
   cursor:pointer;
+  margin-bottom:16px;
   transition:
-    background .15s ease,
-    border-color .15s ease,
-    color .15s ease
+    background .2s ease,
+    color .2s ease,
+    box-shadow .2s ease,
+    transform .15s ease
 }
 
-.lamp-toggle:hover{
-  background:rgba(255,255,255,.09);
-  border-color:rgba(255,255,255,.22)
+.cc-bubble:hover{
+  transform:translateY(-1px)
 }
 
-.lamp-toggle svg{
-  opacity:.8
+.cc-bubble:active{
+  transform:scale(.96)
 }
 
-.lamp-toggle.on{
-  color:var(--green);
-  border-color:rgba(52,229,185,.35);
-  background:rgba(52,229,185,.08)
+.cc-bubble.on{
+  background:linear-gradient(135deg,#ffd60a,#ff9f0a);
+  color:#3a2600;
+  box-shadow:0 8px 22px rgba(255,159,10,.35)
 }
 
-.lamp-toggle.on:hover{
-  background:rgba(52,229,185,.14)
+.cc-tap-hint{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-left:auto;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:600
+}
+
+.cc-tap-hint svg{
+  opacity:.7
 }
 
 .button-grid{
@@ -519,7 +573,7 @@ h1{
   background:rgba(0,122,255,.09);
   color:var(--blue);
   padding:15px 12px;
-  border-radius:15px;
+  border-radius:18px;
   display:flex;
   align-items:center;
   gap:8px;
@@ -584,6 +638,8 @@ h1{
   width:44px;
   height:44px;
   min-width:44px;
+  border-radius:13px;
+  overflow:hidden;
   display:grid;
   place-items:center;
   flex:none
@@ -806,8 +862,8 @@ h1{
   width:40px;
   height:36px;
   border:0;
-  border-radius:11px;
-  background:rgba(120,120,128,.12);
+  border-radius:13px;
+  background:rgba(120,120,128,.16);
   color:var(--muted)
 }
 
@@ -949,7 +1005,7 @@ h1{
   border:1px solid var(--line);
   background:var(--panel2);
   color:var(--text);
-  border-radius:13px;
+  border-radius:15px;
   padding:12px 13px;
   outline:none
 }
@@ -964,7 +1020,7 @@ h1{
   background:var(--blue);
   color:#fff;
   padding:12px 18px;
-  border-radius:13px;
+  border-radius:15px;
   font-weight:700;
   cursor:pointer
 }
@@ -1004,24 +1060,33 @@ h1{
     display:none
   }
 
-  nav{
+  .cc-nav{
     height:100%;
-    display:flex;
-    flex-direction:row;
-    justify-content:space-around
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:6px
   }
 
-  .nav{
-    flex:1;
-    justify-content:center;
-    flex-direction:column;
-    gap:3px;
-    padding:5px;
-    font-size:10px
+  .cc-tile{
+    aspect-ratio:auto;
+    padding:6px 2px;
+    border-radius:14px;
+    gap:3px
   }
 
-  .nav svg{
-    width:19px
+  .cc-tile-icon{
+    width:26px;
+    height:26px;
+    border-radius:8px
+  }
+
+  .cc-tile-icon svg{
+    width:16px;
+    height:16px
+  }
+
+  .cc-tile-label{
+    font-size:9.5px
   }
 
   .app main{
