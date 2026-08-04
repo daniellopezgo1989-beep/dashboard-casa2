@@ -353,6 +353,16 @@ function App() {
     };
   }, [url, token]);
 
+  function normalizeCalendarEvents(data) {
+    // Home Assistant REST devuelve directamente un array de eventos.
+    const list = Array.isArray(data) ? data : (Array.isArray(data?.events) ? data.events : []);
+    return list.map((event) => ({
+      ...event,
+      start: typeof event.start === "object" ? (event.start?.dateTime || event.start?.date || "") : event.start,
+      end: typeof event.end === "object" ? (event.end?.dateTime || event.end?.date || "") : event.end,
+    }));
+  }
+
   useEffect(() => {
     if (!connected || !calendarEntity || !token) return;
 
@@ -379,7 +389,7 @@ function App() {
 
         const data = await response.json();
         if (!cancelled) {
-          setCalendarEvents(Array.isArray(data.events) ? data.events : []);
+          setCalendarEvents(normalizeCalendarEvents(data));
         }
       } catch (error) {
         console.error("Error cargando eventos del calendario:", error);
@@ -434,7 +444,7 @@ function App() {
       });
       if (refresh.ok) {
         const refreshed = await refresh.json();
-        setCalendarEvents(Array.isArray(refreshed.events) ? refreshed.events : []);
+        setCalendarEvents(normalizeCalendarEvents(refreshed));
       }
 
       return true;
