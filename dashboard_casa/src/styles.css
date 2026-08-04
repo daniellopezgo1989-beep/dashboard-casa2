@@ -1344,3 +1344,220 @@ h1{
     outline-offset:-2px;
   }
 }
+
+
+/* =========================================================
+   EDICIÓN DE WIDGETS — ARRASTRE FÍSICO
+   ========================================================= */
+
+.edit-actions{
+  display:flex;
+  flex-direction:column;
+  gap:8px
+}
+
+.edit-widgets-btn{
+  border:0;
+  background:rgba(120,120,128,.16);
+  color:var(--text);
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:13px 14px;
+  width:100%;
+  cursor:pointer;
+  border-radius:16px;
+  transition:background .2s ease, transform .15s ease
+}
+
+.edit-widgets-btn:hover{
+  background:rgba(120,120,128,.26)
+}
+
+.edit-widgets-btn:active{
+  transform:scale(.98)
+}
+
+.edit-widgets-btn.editing{
+  background:rgba(48,209,88,.16);
+  color:var(--green)
+}
+
+.edit-widgets-btn.editing:hover{
+  background:rgba(48,209,88,.24)
+}
+
+.edit-widgets-btn.cancel-edit{
+  background:rgba(255,69,58,.12);
+  color:var(--red)
+}
+
+.edit-widgets-btn.cancel-edit:hover{
+  background:rgba(255,69,58,.20)
+}
+
+.edit-mode-hint{
+  grid-column:1 / -1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  color:var(--muted);
+  font-size:12px;
+  padding:2px 0 4px;
+  pointer-events:none
+}
+
+.dashboard-widget{
+  position:relative;
+  min-width:0;
+  transition:transform .18s ease, opacity .18s ease, filter .18s ease;
+  touch-action:auto
+}
+
+.dashboard-widget.wide{
+  grid-column:span 4
+}
+
+.dashboard-widget.half{
+  grid-column:span 2
+}
+
+.dashboard-widget > .card{
+  height:100%
+}
+
+.dashboard-widget.edit-mode{
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none
+}
+
+.dashboard-widget.edit-mode:active{
+  cursor:grabbing
+}
+
+.dashboard-widget.edit-mode .card{
+  outline:1px solid rgba(10,132,255,.30);
+  box-shadow:
+    0 0 0 2px rgba(10,132,255,.10),
+    var(--shadow),
+    inset 0 1px 0 rgba(255,255,255,.10)
+}
+
+.dashboard-widget.edit-mode:hover .card{
+  outline-color:rgba(10,132,255,.60)
+}
+
+.dashboard-widget.is-dragging{
+  transition:none;
+  cursor:grabbing;
+  z-index:1000
+}
+
+.dashboard-widget.is-dragging .card{
+  box-shadow:
+    0 28px 65px rgba(0,0,0,.48),
+    0 0 0 2px rgba(10,132,255,.45),
+    inset 0 1px 0 rgba(255,255,255,.16);
+  opacity:.94
+}
+
+.dashboard-widget.edit-mode::after{
+  content:"⋮⋮";
+  position:absolute;
+  top:10px;
+  right:12px;
+  z-index:5;
+  color:var(--muted);
+  font-size:17px;
+  line-height:1;
+  letter-spacing:-4px;
+  pointer-events:none
+}
+
+@media(max-width:850px){
+  .edit-actions{
+    flex-direction:row;
+    gap:6px
+  }
+
+  .edit-actions .edit-widgets-btn{
+    justify-content:center;
+    padding:10px 8px;
+    font-size:11px
+  }
+
+  .edit-mode-hint{
+    font-size:11px
+  }
+
+  .dashboard-widget.wide,
+  .dashboard-widget.half{
+    grid-column:span 1
+  }
+
+  .dashboard-widget.edit-mode .card{
+    outline-width:1px
+  }
+}
+
+/* =========================================================
+   ARRASTRE FÍSICO DE WIDGETS — ajuste final
+   ========================================================= */
+.dashboard-widget.edit-mode{
+  touch-action:none;
+  cursor:grab;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+.dashboard-widget.edit-mode .card,
+.dashboard-widget.edit-mode button,
+.dashboard-widget.edit-mode a,
+.dashboard-widget.edit-mode input,
+.dashboard-widget.edit-mode textarea,
+.dashboard-widget.edit-mode select{
+  pointer-events:none;
+}
+
+.dashboard-widget.is-dragging{
+  z-index:9999;
+  transition:none !important;
+  cursor:grabbing;
+}
+
+.dashboard-widget.is-dragging .card{
+  opacity:.92;
+  transform:scale(1.025) rotate(.35deg);
+  box-shadow:0 28px 70px rgba(0,0,0,.42), 0 0 0 2px rgba(10,132,255,.45);
+}
+
+.edit-actions{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.edit-widgets-btn.cancel-edit{
+  background:rgba(255,69,58,.12);
+  color:var(--red);
+}
+
+.edit-widgets-btn.cancel-edit:hover{
+  background:rgba(255,69,58,.22);
+}
+
+@media(max-width:850px){
+  .edit-actions{
+    flex-direction:row;
+    gap:6px;
+  }
+
+  .edit-actions .edit-widgets-btn{
+    justify-content:center;
+    padding:10px 8px;
+    font-size:11px;
+  }
+}
