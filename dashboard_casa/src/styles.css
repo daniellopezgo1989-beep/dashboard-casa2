@@ -4,53 +4,60 @@
 
 :root{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Inter,system-ui,sans-serif;
-  color-scheme:light;
-  background:#0d3a52;
-  color:#eaf6ff
+  color-scheme:dark;
+  background:#241522;
+  color:#f5f2f4
 }
 
 :root[data-theme=dark]{
   color-scheme:dark;
-  background:#031824;
-  color:#eaf6ff
+  background:#150c1a;
+  color:#f5f2f4
 }
 
 body{
   margin:0;
-  background:var(--bg,#0d3a52);
-  color:var(--text,#eaf6ff);
+  background:var(--bg,#241522);
+  color:var(--text,#f5f2f4);
   min-height:100vh
 }
 
+/* =========================================================
+   FONDO ESTILO WALLPAPER DE CENTRO DE CONTROL DE iOS
+   (tonos cálidos atardecer -> violeta profundo, desenfocado)
+   ========================================================= */
+
 :root{
   --bg:
-    radial-gradient(1200px 800px at 12% -10%,rgba(83,196,201,.35),transparent 60%),
-    radial-gradient(1000px 700px at 110% 10%,rgba(0,122,255,.28),transparent 55%),
-    linear-gradient(160deg,#0a3049 0%,#0e4863 42%,#0a5f6e 78%,#0b3a52 100%);
+    radial-gradient(1100px 780px at 8% -8%,rgba(255,196,150,.40),transparent 58%),
+    radial-gradient(900px 700px at 92% 6%,rgba(255,150,150,.22),transparent 55%),
+    radial-gradient(1100px 900px at 30% 115%,rgba(120,70,160,.38),transparent 60%),
+    linear-gradient(165deg,#3a2430 0%,#31202e 30%,#241a34 60%,#181026 85%,#120c20 100%);
 
-  --panel:rgba(20,60,80,.42);
-  --panel2:rgba(15,55,75,.72);
-  --text:#eaf6ff;
-  --muted:#9fc8d6;
-  --line:rgba(180,230,240,.16);
-  --blue:#0af0ff;
-  --green:#34e5b9;
-  --red:#ff6b5e;
-  --shadow:0 12px 40px rgba(0,20,30,.35)
+  --panel:rgba(60,48,58,.40);
+  --panel2:rgba(38,30,38,.70);
+  --text:#f5f2f4;
+  --muted:rgba(235,232,240,.62);
+  --line:rgba(255,255,255,.14);
+  --blue:#0a84ff;
+  --green:#30d158;
+  --red:#ff453a;
+  --shadow:0 16px 46px rgba(0,0,0,.40)
 }
 
 :root[data-theme=dark]{
   --bg:
-    radial-gradient(1200px 800px at 12% -10%,rgba(20,120,130,.32),transparent 60%),
-    radial-gradient(1000px 700px at 110% 10%,rgba(0,90,200,.25),transparent 55%),
-    linear-gradient(160deg,#020e16 0%,#052635 42%,#053a3f 78%,#031824 100%);
+    radial-gradient(1100px 780px at 8% -8%,rgba(210,150,120,.30),transparent 58%),
+    radial-gradient(900px 700px at 92% 6%,rgba(180,90,110,.18),transparent 55%),
+    radial-gradient(1100px 900px at 30% 115%,rgba(80,45,120,.34),transparent 60%),
+    linear-gradient(165deg,#241620 0%,#1d1420 30%,#160f22 60%,#0f0a1a 85%,#0a0714 100%);
 
-  --panel:rgba(8,30,42,.55);
-  --panel2:rgba(6,26,36,.82);
-  --text:#eaf6ff;
-  --muted:#7fb3c4;
-  --line:rgba(150,220,235,.12);
-  --shadow:0 12px 40px rgba(0,0,0,.45)
+  --panel:rgba(40,34,40,.42);
+  --panel2:rgba(24,20,26,.76);
+  --text:#f5f2f4;
+  --muted:rgba(235,232,240,.56);
+  --line:rgba(255,255,255,.10);
+  --shadow:0 16px 46px rgba(0,0,0,.55)
 }
 
 button,
@@ -64,12 +71,13 @@ input{
 }
 
 .sidebar{
-  width:245px;
+  width:250px;
   position:fixed;
   inset:0 auto 0 0;
-  padding:28px 16px 20px;
+  padding:28px 14px 20px;
   background:var(--panel);
-  backdrop-filter:blur(24px);
+  backdrop-filter:blur(34px) saturate(160%);
+  -webkit-backdrop-filter:blur(34px) saturate(160%);
   border-right:1px solid var(--line);
   display:flex;
   flex-direction:column
@@ -109,65 +117,68 @@ input{
    ========================================================= */
 
 .cc-nav{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px
+  display:flex;
+  flex-direction:column;
+  gap:4px
 }
 
 .cc-tile{
   border:0;
-  background:rgba(120,120,128,.16);
+  background:transparent;
   color:var(--text);
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   align-items:center;
-  justify-content:center;
-  gap:8px;
-  padding:16px 8px;
-  border-radius:20px;
-  text-align:center;
+  justify-content:flex-start;
+  gap:13px;
+  padding:10px 12px;
+  border-radius:16px;
+  text-align:left;
   cursor:pointer;
-  aspect-ratio:1;
+  width:100%;
   transition:
     background .2s ease,
     transform .15s ease
 }
 
 .cc-tile:hover{
-  background:rgba(120,120,128,.24);
-  transform:translateY(-1px)
+  background:rgba(120,120,128,.16)
 }
 
 .cc-tile:active{
-  transform:scale(.97)
+  transform:scale(.98)
 }
 
 .cc-tile-icon{
-  width:36px;
-  height:36px;
-  border-radius:11px;
+  width:32px;
+  height:32px;
+  min-width:32px;
+  border-radius:9px;
   display:grid;
   place-items:center;
-  background:rgba(255,255,255,.08);
+  background:rgba(255,255,255,.09);
   color:var(--muted);
   transition:background .2s ease, color .2s ease
 }
 
 .cc-tile-label{
-  font-size:11.5px;
+  font-size:14.5px;
   font-weight:600;
   color:var(--muted);
-  line-height:1.15
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
 }
 
 .cc-tile.active{
-  background:var(--tile-bg, rgba(10,132,255,.2))
+  background:var(--tile-bg, rgba(10,132,255,.18))
 }
 
 .cc-tile.active .cc-tile-icon{
   background:var(--tile-color, var(--blue));
   color:#fff;
-  box-shadow:0 6px 16px rgba(0,0,0,.25)
+  box-shadow:0 4px 12px rgba(0,0,0,.25)
 }
 
 .cc-tile.active .cc-tile-label{
@@ -211,8 +222,8 @@ input{
 }
 
 main{
-  margin-left:245px;
-  width:calc(100% - 245px);
+  margin-left:250px;
+  width:calc(100% - 250px);
   padding:42px clamp(24px,5vw,70px) 70px;
   max-width:1450px
 }
@@ -265,12 +276,12 @@ h1{
 .card{
   position:relative;
   background:var(--panel);
-  backdrop-filter:blur(20px) saturate(140%);
-  -webkit-backdrop-filter:blur(20px) saturate(140%);
+  backdrop-filter:blur(34px) saturate(160%);
+  -webkit-backdrop-filter:blur(34px) saturate(160%);
   border:1px solid var(--line);
-  border-radius:26px;
+  border-radius:28px;
   padding:22px;
-  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.08)
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.10)
 }
 
 .card::before{
@@ -521,7 +532,9 @@ h1{
   width:64px;
   height:64px;
   border-radius:20px;
-  background:rgba(120,120,128,.16);
+  background:rgba(120,120,128,.20);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
   color:var(--muted);
   display:grid;
   place-items:center;
@@ -570,7 +583,9 @@ h1{
 
 .action{
   border:0;
-  background:rgba(0,122,255,.09);
+  background:rgba(120,120,128,.16);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
   color:var(--blue);
   padding:15px 12px;
   border-radius:18px;
@@ -1068,10 +1083,18 @@ h1{
   }
 
   .cc-tile{
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
     aspect-ratio:auto;
     padding:6px 2px;
     border-radius:14px;
     gap:3px
+  }
+
+  .cc-tile-label{
+    white-space:normal
   }
 
   .cc-tile-icon{
