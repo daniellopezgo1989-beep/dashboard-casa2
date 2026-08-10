@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const DEFAULT_URL = "http://100.67.184.82:8123";
+const DEFAULT_URL = "";
 const DEFAULT_PRICE = 0.216;
 
 const ENTITIES = {
@@ -75,7 +75,9 @@ const ICON_SLUGS = {
 function loadConfig() {
   try {
     return {
-      ...JSON.parse(localStorage.getItem("casa_config") || "{}")
+      ...JSON.parse(
+        localStorage.getItem("casa_config") || "{}"
+      )
     };
   } catch {
     return {};
@@ -129,8 +131,8 @@ function App() {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarModal, setCalendarModal] = useState(false);
 
-  const url = config.url || DEFAULT_URL;
-  const token = config.token || "";
+const url = "";
+const token = "";
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -172,40 +174,46 @@ function App() {
   }
 
   useEffect(() => {
-    if (!token) {
-      setConnected(false);
-      setStates({});
+  let ws = null;
+  let alive = true;
+  let reconnectTimer = null;
+
+  function connect() {
+    if (!alive) {
       return;
     }
 
-    let ws = null;
-    let alive = true;
-
     try {
-      const wsUrl = url.replace(/^http/, "ws") + "/api/websocket";
+      const protocol =
+        window.location.protocol === "https:"
+          ? "wss:"
+          : "ws:";
+
+      const wsUrl =
+        `${protocol}//${window.location.host}/api/websocket`;
+
       ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("WebSocket conectado");
+        console.log(
+          "WebSocket conectado al proxy de Dashboard Casa"
+        );
       };
 
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
 
-          if (msg.type === "auth_required") {
-            ws.send(
-              JSON.stringify({
-                type: "auth",
-                access_token: token
-              })
-            );
-            return;
-          }
+          /*
+           * El backend ya autentica contra Home Assistant.
+           *
+           * Por tanto, el frontend NO envía ningún token.
+           */
 
           if (msg.type === "auth_ok") {
-            console.log("Home Assistant autenticado");
+            console.log(
+              "Home Assistant autenticado mediante el backend"
+            );
 
             if (alive) {
               setConnected(true);
@@ -229,6 +237,27 @@ function App() {
             return;
           }
 
+          if (
+            msg.type === "auth_invalid" ||
+            msg.type === "auth_required"
+          ) {
+            /*
+             * El backend debería haber autenticado
+             * automáticamente. Si Home Assistant pide
+             * autenticación otra vez, no enviamos ningún
+             * secreto desde el navegador.
+             */
+            console.error(
+              "Home Assistant solicita autenticación"
+            );
+
+            if (alive) {
+              setConnected(false);
+            }
+
+            return;
+          }
+
           if (msg.id === 1 && msg.success) {
             const map = Object.fromEntries(
               msg.result.map((entity) => [
@@ -239,45 +268,16 @@ function App() {
 
             if (alive) {
               setStates(map);
-              const calendars = msg.result
-                .filter((entity) => entity.entity_id.startsWith("calendar."))
-                .map((entity) => ({
-                  entity_id: entity.entity_id,
-                  name: entity.attributes?.friendly_name || entity.entity_id.replace("calendar.", "")
-                }))
-                .sort((a, b) => a.name.localeCompare(b.name, "es"));
-              setCalendarEntities(calendars);
-              setCalendarEntity((current) => current || calendars[0]?.entity_id || "");
             }
 
             return;
           }
 
           if (msg.id === 2 && msg.success) {
-            console.log("Suscripción a cambios activa");
-            return;
-          }
+            console.log(
+              "Suscripción a cambios activa"
+            );
 
-          // La suscripción de calendario devuelve los eventos en msg.event.events.
-          if (msg.type === "event" && msg.event?.events) {
-            setCalendarEvents(Array.isArray(msg.event.events) ? msg.event.events : []);
-            setCalendarLoading(false);
-            return;
-          }
-
-          if (msg.type === "result" && msg.success && msg.result?.events) {
-            setCalendarEvents(Array.isArray(msg.result.events) ? msg.result.events : []);
-            setCalendarLoading(false);
-            return;
-          }
-
-          // Evita que la interfaz se quede indefinidamente en "Cargando…" si HA responde con error.
-          if (msg.type === "result" && msg.id >= 1000 && !msg.success) {
-            console.error("Error obteniendo calendario:", msg.error);
-            setCalendarEvents([]);
-            setCalendarLoading(false);
-            setMessage("No se pudieron cargar los eventos del calendario");
-            setTimeout(() => setMessage(""), 2500);
             return;
           }
 
@@ -288,12 +288,18 @@ function App() {
           ) {
             const eventData = msg.event.data;
 
-            if (!eventData || !eventData.entity_id) {
+            if (
+              !eventData ||
+              !eventData.entity_id
+            ) {
               return;
             }
 
-            const entityId = eventData.entity_id;
-            const newState = eventData.new_state;
+            const entityId =
+              eventData.entity_id;
+
+            const newState =
+              eventData.new_state;
 
             if (!newState || !alive) {
               return;
@@ -303,12 +309,6 @@ function App() {
               ...previous,
               [entityId]: newState
             }));
-
-            console.log(
-              "Estado actualizado:",
-              entityId,
-              newState.state
-            );
           }
         } catch (error) {
           console.error(
@@ -319,16 +319,27 @@ function App() {
       };
 
       ws.onclose = () => {
-        if (wsRef.current === ws) wsRef.current = null;
-        console.log("WebSocket cerrado");
+        console.log(
+          "WebSocket cerrado"
+        );
 
         if (alive) {
           setConnected(false);
+
+          clearTimeout(reconnectTimer);
+
+          reconnectTimer = setTimeout(
+            connect,
+            3000
+          );
         }
       };
 
       ws.onerror = (error) => {
-        console.error("Error WebSocket:", error);
+        console.error(
+          "Error WebSocket:",
+          error
+        );
 
         if (alive) {
           setConnected(false);
@@ -336,22 +347,35 @@ function App() {
       };
     } catch (error) {
       console.error(
-        "No se pudo conectar con Home Assistant:",
+        "No se pudo conectar con Dashboard Casa:",
         error
       );
 
-      setConnected(false);
+      if (alive) {
+        setConnected(false);
+
+        clearTimeout(reconnectTimer);
+
+        reconnectTimer = setTimeout(
+          connect,
+          3000
+        );
+      }
     }
+  }
 
-    return () => {
-      alive = false;
+  connect();
 
-      try {
-        if (wsRef.current === ws) wsRef.current = null;
-        ws?.close();
-      } catch {}
-    };
-  }, [url, token]);
+  return () => {
+    alive = false;
+
+    clearTimeout(reconnectTimer);
+
+    try {
+      ws?.close();
+    } catch {}
+  };
+}, []);
 
   function normalizeCalendarEvents(data) {
     // Home Assistant REST devuelve directamente un array de eventos.
@@ -508,58 +532,51 @@ function App() {
     ? nowTick - freezerOpenSince
     : 0;
 
-  async function callService(
-    domain,
-    service,
-    entity_id
-  ) {
-    if (!token) {
-      setMessage(
-        "Añade tu token en ⚙️ Ajustes."
-      );
-
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${url}/api/services/${domain}/${service}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            entity_id
-          })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+async function callService(
+  domain,
+  service,
+  entity_id
+) {
+  try {
+    const response = await fetch(
+      `/api/services/${domain}/${service}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          entity_id
+        })
       }
+    );
 
-      setMessage("Acción enviada");
-
-      setTimeout(() => {
-        setMessage("");
-      }, 1600);
-    } catch (error) {
-      console.error(
-        "Error ejecutando servicio:",
-        error
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status}`
       );
-
-      setMessage(
-        "No se pudo conectar con Home Assistant"
-      );
-
-      setTimeout(() => {
-        setMessage("");
-      }, 2000);
     }
+
+    setMessage("Acción enviada");
+
+    setTimeout(() => {
+      setMessage("");
+    }, 1600);
+  } catch (error) {
+    console.error(
+      "Error ejecutando servicio:",
+      error
+    );
+
+    setMessage(
+      "No se pudo conectar con Home Assistant"
+    );
+
+    setTimeout(() => {
+      setMessage("");
+    }, 2000);
   }
+}
 
   const nav = [
     ["Domótica", House, "#0a84ff"],
