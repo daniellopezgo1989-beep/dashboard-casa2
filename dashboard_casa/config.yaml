@@ -1,5 +1,5 @@
 name: Dashboard Casa
-version: "1.1.0"
+version: "1.1.1"
 slug: dashboard_casa
 description: Dashboard de control de la casa conectado con Home Assistant
 url: https://github.com/daniellopezgo1989-beep/dashboard-casa2
