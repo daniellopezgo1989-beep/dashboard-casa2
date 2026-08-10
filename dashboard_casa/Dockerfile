@@ -22,9 +22,13 @@ COPY . .
 
 RUN npm run build
 
+COPY run.sh /run.sh
+
+RUN chmod +x /run.sh
+
 ENV NODE_ENV=production
 ENV PORT=8099
 
 EXPOSE 8099
 
-CMD ["npm", "start"]
+CMD ["/run.sh"]
