@@ -26,50 +26,66 @@ app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
 
 /*
- * ------------------------------------------------------------
- * Health check
- * ------------------------------------------------------------
+ * ============================================================
+ * HEALTH
+ * ============================================================
  */
 
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
     service: "dashboard-casa",
-    version: "1.1.0"
+    version: "1.1.1"
   });
 });
 
 /*
- * ------------------------------------------------------------
- * Proxy REST hacia Home Assistant Core
- * ------------------------------------------------------------
+ * ============================================================
+ * PROXY REST HACIA HOME ASSISTANT
+ * ============================================================
  *
- * El navegador nunca recibe SUPERVISOR_TOKEN.
+ * El navegador llama:
  *
- * Navegador:
  *   /api/states
+ *   /api/services/switch/turn_on
+ *   /api/services/script/turn_on
  *
- * App:
- *   http://supervisor/core/api/states
+ * El servidor convierte esas peticiones en:
  *
- * con:
- *   Authorization: Bearer SUPERVISOR_TOKEN
+ *   http://supervisor/core/api/...
+ *
+ * El SUPERVISOR_TOKEN NUNCA sale del servidor.
+ *
+ * ============================================================
  */
 
 async function proxyHomeAssistant(req, res) {
   try {
-    const targetPath = req.originalUrl;
+    /*
+     * req.originalUrl contiene /api/...
+     *
+     * Necesitamos quitar el primer /api porque
+     * SUPERVISOR_CORE_API ya termina en /api.
+     */
+    const apiPath = req.originalUrl.replace(/^\/api/, "");
 
     const targetUrl =
-      `${SUPERVISOR_CORE_API}${targetPath}`;
+      `${SUPERVISOR_CORE_API}${apiPath}`;
+
+    console.log(
+      `[REST] ${req.method} ${req.originalUrl} -> ${targetUrl}`
+    );
 
     const headers = {
       Authorization: `Bearer ${SUPERVISOR_TOKEN}`,
-      Accept: req.headers.accept || "application/json"
+      Accept:
+        req.headers.accept ||
+        "application/json"
     };
 
     if (req.headers["content-type"]) {
-      headers["Content-Type"] = req.headers["content-type"];
+      headers["Content-Type"] =
+        req.headers["content-type"];
     }
 
     const options = {
@@ -82,216 +98,444 @@ async function proxyHomeAssistant(req, res) {
       req.method !== "HEAD" &&
       req.method !== "OPTIONS"
     ) {
-      options.body = JSON.stringify(req.body ?? {});
-      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(
+        req.body ?? {}
+      );
+
+      options.headers["Content-Type"] =
+        "application/json";
     }
 
-    const response = await fetch(targetUrl, options);
+    const response = await fetch(
+      targetUrl,
+      options
+    );
 
     const contentType =
-      response.headers.get("content-type");
+      response.headers.get(
+        "content-type"
+      );
 
     if (contentType) {
-      res.setHeader("Content-Type", contentType);
+      res.setHeader(
+        "Content-Type",
+        contentType
+      );
     }
 
     res.status(response.status);
 
-    const body = await response.arrayBuffer();
+    const body =
+      await response.arrayBuffer();
 
-    res.send(Buffer.from(body));
+    res.send(
+      Buffer.from(body)
+    );
   } catch (error) {
     console.error(
-      "Error comunicando con Home Assistant:",
+      "[REST] Error comunicando con Home Assistant:",
       error
     );
 
-    res.status(502).json({
-      error: "No se pudo comunicar con Home Assistant"
-    });
+    if (!res.headersSent) {
+      res.status(502).json({
+        error:
+          "No se pudo comunicar con Home Assistant",
+        details:
+          error?.message || String(error)
+      });
+    }
   }
 }
 
 /*
- * Todas las llamadas /api/* se envían al Core interno.
+ * Todas las peticiones /api/*
+ * pasan por nuestro proxy.
  */
-
-app.use("/api", proxyHomeAssistant);
-
-/*
- * ------------------------------------------------------------
- * Archivos estáticos del dashboard
- * ------------------------------------------------------------
- */
-
-const distPath = path.join(__dirname, "dist");
-
 app.use(
-  express.static(distPath, {
-    index: "index.html",
-    extensions: ["html"]
-  })
+  "/api",
+  proxyHomeAssistant
 );
 
 /*
- * SPA fallback
+ * ============================================================
+ * ARCHIVOS ESTÁTICOS
+ * ============================================================
  */
 
-app.get("/{*splat}", (req, res, next) => {
-  if (
-    req.path.startsWith("/api/") ||
-    req.path === "/health"
-  ) {
-    return next();
-  }
-
-  res.sendFile(
-    path.join(distPath, "index.html")
+const distPath =
+  path.join(
+    __dirname,
+    "dist"
   );
-});
+
+app.use(
+  express.static(
+    distPath,
+    {
+      index: "index.html",
+      extensions: ["html"]
+    }
+  )
+);
 
 /*
- * ------------------------------------------------------------
- * WebSocket proxy
- * ------------------------------------------------------------
+ * ============================================================
+ * SPA FALLBACK
+ * ============================================================
  *
- * Frontend:
+ * IMPORTANTE:
  *
- *   ws://<dashboard>/api/websocket
+ * Express 5 no acepta:
  *
- * Backend:
+ *   app.get("*")
+ *
+ * Utilizamos:
+ *
+ *   /{*splat}
+ *
+ * ============================================================
+ */
+
+app.get(
+  "/{*splat}",
+  (req, res, next) => {
+    if (
+      req.path.startsWith("/api/") ||
+      req.path === "/health"
+    ) {
+      return next();
+    }
+
+    res.sendFile(
+      path.join(
+        distPath,
+        "index.html"
+      )
+    );
+  }
+);
+
+/*
+ * ============================================================
+ * WEBSOCKET PROXY
+ * ============================================================
+ *
+ * Navegador:
+ *
+ *   ws://dashboard/api/websocket
+ *
+ * Servidor:
  *
  *   ws://supervisor/core/websocket
  *
- * El token permanece únicamente en el backend.
- * ------------------------------------------------------------
+ * El token solamente existe en este servidor.
+ *
+ * ============================================================
  */
 
-const websocketServer = new WebSocketServer({
-  noServer: true
-});
+const websocketServer =
+  new WebSocketServer({
+    noServer: true
+  });
 
-server.on("upgrade", (request, socket, head) => {
-  const requestUrl = new URL(
-    request.url,
-    `http://${request.headers.host}`
-  );
+server.on(
+  "upgrade",
+  (request, socket, head) => {
+    try {
+      const requestUrl =
+        new URL(
+          request.url,
+          `http://${request.headers.host}`
+        );
 
-  if (requestUrl.pathname !== "/api/websocket") {
-    socket.destroy();
-    return;
-  }
-
-  websocketServer.handleUpgrade(
-    request,
-    socket,
-    head,
-    (clientSocket) => {
-      websocketServer.emit(
-        "connection",
-        clientSocket,
-        request
+      console.log(
+        `[WS] Upgrade solicitado: ${requestUrl.pathname}`
       );
+
+      if (
+        requestUrl.pathname !==
+        "/api/websocket"
+      ) {
+        console.log(
+          "[WS] Ruta WebSocket rechazada:",
+          requestUrl.pathname
+        );
+
+        socket.destroy();
+        return;
+      }
+
+      websocketServer.handleUpgrade(
+        request,
+        socket,
+        head,
+        (clientSocket) => {
+          websocketServer.emit(
+            "connection",
+            clientSocket,
+            request
+          );
+        }
+      );
+    } catch (error) {
+      console.error(
+        "[WS] Error durante upgrade:",
+        error
+      );
+
+      socket.destroy();
     }
-  );
-});
+  }
+);
 
 websocketServer.on(
   "connection",
   (clientSocket) => {
-    const homeAssistantSocket =
-      new WebSocket(SUPERVISOR_CORE_WS);
+    console.log(
+      "[WS] Cliente conectado al dashboard"
+    );
 
     let closed = false;
 
-    const closeBoth = () => {
-      if (closed) {
-        return;
-      }
-
-      closed = true;
-
-      try {
-        clientSocket.close();
-      } catch {}
-
-      try {
-        homeAssistantSocket.close();
-      } catch {}
-    };
-
-    homeAssistantSocket.on("open", () => {
-      /*
-       * El proxy WebSocket del Supervisor acepta
-       * SUPERVISOR_TOKEN como contraseña.
-       */
-      homeAssistantSocket.send(
-        JSON.stringify({
-          type: "auth",
-          access_token: SUPERVISOR_TOKEN
-        })
+    const homeAssistantSocket =
+      new WebSocket(
+        SUPERVISOR_CORE_WS,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${SUPERVISOR_TOKEN}`
+          }
+        }
       );
-    });
 
-    homeAssistantSocket.on("message", (data) => {
-      if (clientSocket.readyState === WebSocket.OPEN) {
-        clientSocket.send(data);
-      }
-    });
+    const closeBoth =
+      (code = 1000) => {
+        if (closed) {
+          return;
+        }
 
-    clientSocket.on("message", (data) => {
-      if (
-        homeAssistantSocket.readyState ===
-        WebSocket.OPEN
-      ) {
-        homeAssistantSocket.send(data);
-      }
-    });
+        closed = true;
 
-    homeAssistantSocket.on("close", closeBoth);
-    clientSocket.on("close", closeBoth);
+        try {
+          if (
+            clientSocket.readyState ===
+            WebSocket.OPEN
+          ) {
+            clientSocket.close(code);
+          }
+        } catch {}
+
+        try {
+          if (
+            homeAssistantSocket.readyState ===
+              WebSocket.OPEN ||
+            homeAssistantSocket.readyState ===
+              WebSocket.CONNECTING
+          ) {
+            homeAssistantSocket.close();
+          }
+        } catch {}
+      };
+
+    /*
+     * ========================================================
+     * HOME ASSISTANT WS ABIERTO
+     * ========================================================
+     */
 
     homeAssistantSocket.on(
-      "error",
-      (error) => {
-        console.error(
-          "WebSocket Home Assistant:",
-          error
+      "open",
+      () => {
+        console.log(
+          "[WS] Conectado con Home Assistant"
+        );
+
+        /*
+         * El proxy WebSocket de Home Assistant
+         * necesita recibir auth.
+         *
+         * El token NO se envía al navegador.
+         */
+
+        homeAssistantSocket.send(
+          JSON.stringify({
+            type: "auth",
+            access_token:
+              SUPERVISOR_TOKEN
+          })
+        );
+
+        console.log(
+          "[WS] Autenticación enviada a Home Assistant"
+        );
+      }
+    );
+
+    /*
+     * ========================================================
+     * MENSAJES HOME ASSISTANT -> NAVEGADOR
+     * ========================================================
+     */
+
+    homeAssistantSocket.on(
+      "message",
+      (data) => {
+        try {
+          const text =
+            data.toString();
+
+          console.log(
+            "[WS] HA -> navegador:",
+            text.substring(0, 300)
+          );
+
+          if (
+            clientSocket.readyState ===
+            WebSocket.OPEN
+          ) {
+            clientSocket.send(data);
+          }
+        } catch (error) {
+          console.error(
+            "[WS] Error enviando datos al navegador:",
+            error
+          );
+        }
+      }
+    );
+
+    /*
+     * ========================================================
+     * MENSAJES NAVEGADOR -> HOME ASSISTANT
+     * ========================================================
+     */
+
+    clientSocket.on(
+      "message",
+      (data) => {
+        try {
+          const text =
+            data.toString();
+
+          console.log(
+            "[WS] navegador -> HA:",
+            text.substring(0, 300)
+          );
+
+          if (
+            homeAssistantSocket.readyState ===
+            WebSocket.OPEN
+          ) {
+            homeAssistantSocket.send(
+              data
+            );
+          } else {
+            console.warn(
+              "[WS] Home Assistant todavía no está conectado"
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[WS] Error enviando datos a Home Assistant:",
+            error
+          );
+        }
+      }
+    );
+
+    /*
+     * ========================================================
+     * CIERRES
+     * ========================================================
+     */
+
+    homeAssistantSocket.on(
+      "close",
+      (code, reason) => {
+        console.log(
+          "[WS] Home Assistant cerró conexión:",
+          code,
+          reason?.toString()
         );
 
         closeBoth();
       }
     );
 
-    clientSocket.on("error", (error) => {
-      console.error(
-        "WebSocket cliente:",
-        error
-      );
+    clientSocket.on(
+      "close",
+      () => {
+        console.log(
+          "[WS] Cliente cerró conexión"
+        );
 
-      closeBoth();
-    });
+        closeBoth();
+      }
+    );
+
+    /*
+     * ========================================================
+     * ERRORES
+     * ========================================================
+     */
+
+    homeAssistantSocket.on(
+      "error",
+      (error) => {
+        console.error(
+          "[WS] Error Home Assistant:",
+          error
+        );
+
+        closeBoth(1011);
+      }
+    );
+
+    clientSocket.on(
+      "error",
+      (error) => {
+        console.error(
+          "[WS] Error cliente:",
+          error
+        );
+
+        closeBoth(1011);
+      }
+    );
   }
 );
 
 /*
- * ------------------------------------------------------------
- * Inicio
- * ------------------------------------------------------------
+ * ============================================================
+ * SERVIDOR
+ * ============================================================
  */
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    `Dashboard Casa escuchando en ${PORT}`
-  );
+server.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+    console.log(
+      `Dashboard Casa escuchando en ${PORT}`
+    );
 
-  console.log(
-    "Home Assistant Core:",
-    SUPERVISOR_CORE_API
-  );
+    console.log(
+      "Home Assistant Core:",
+      SUPERVISOR_CORE_API
+    );
 
-  console.log(
-    "WebSocket Home Assistant:",
-    SUPERVISOR_CORE_WS
-  );
-});
+    console.log(
+      "WebSocket Home Assistant:",
+      SUPERVISOR_CORE_WS
+    );
+
+    console.log(
+      "Proxy REST: /api/*"
+    );
+
+    console.log(
+      "Proxy WebSocket: /api/websocket"
+    );
+  }
+);
