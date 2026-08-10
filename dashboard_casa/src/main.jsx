@@ -1,5 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
-import { createRoot } from "react-dom/client";
+import React, {
+  useEffect,
+  useRef,
+  useState
+} from "react";
+
+import {
+  createRoot
+} from "react-dom/client";
+
 import {
   House,
   Lightbulb,
@@ -27,7 +35,15 @@ import {
   Plus,
   X
 } from "lucide-react";
+
 import "./styles.css";
+
+
+/*
+ * ============================================================
+ * CONFIGURACIÓN
+ * ============================================================
+ */
 
 const DEFAULT_PRICE = 0.216;
 
@@ -44,36 +60,68 @@ const ENTITIES = {
   movistarHdmi: "script.tv_movistar_hdmi",
   maxPlayer: "script.tv_max_player",
 
-  freezer: "binary_sensor.sensor_congelador_contact",
+  freezer:
+    "binary_sensor.sensor_congelador_contact",
 
-  power: "sensor.lampara_power",
-  energy: "sensor.lampara_energy"
+  power:
+    "sensor.lampara_power",
+
+  energy:
+    "sensor.lampara_energy"
 };
+
+
+/*
+ * ============================================================
+ * ICONOS TV
+ * ============================================================
+ */
 
 const ICON_BG = {
-  netflix: { background: "#e50914" },
+  netflix: {
+    background: "#e50914"
+  },
+
   hbo: {
-    background: "linear-gradient(135deg,#7b2ff7,#1a0b2e)"
+    background:
+      "linear-gradient(135deg,#7b2ff7,#1a0b2e)"
   },
+
   prime: {
-    background: "linear-gradient(135deg,#00a8e1,#00415f)"
+    background:
+      "linear-gradient(135deg,#00a8e1,#00415f)"
   },
+
   movistar: {
-    background: "linear-gradient(135deg,#0193f4,#014a8f)"
+    background:
+      "linear-gradient(135deg,#0193f4,#014a8f)"
   },
+
   maxplayer: {
-    background: "linear-gradient(135deg,#5b5b66,#232329)"
+    background:
+      "linear-gradient(135deg,#5b5b66,#232329)"
   },
+
   cine: {
-    background: "linear-gradient(135deg,#0af0ff,#0a6fbf)"
+    background:
+      "linear-gradient(135deg,#0af0ff,#0a6fbf)"
   },
+
   tvon: {
-    background: "linear-gradient(135deg,#34e5b9,#0a8f6e)"
+    background:
+      "linear-gradient(135deg,#34e5b9,#0a8f6e)"
   },
+
   tvoff: {
-    background: "linear-gradient(135deg,#ff6b5e,#8f1f16)"
+    background:
+      "linear-gradient(135deg,#ff6b5e,#8f1f16)"
   }
 };
+
+
+/*
+ * Logos de simple-icons
+ */
 
 const ICON_SLUGS = {
   netflix: "netflix",
@@ -82,11 +130,20 @@ const ICON_SLUGS = {
   movistar: "movistarplus"
 };
 
+
+/*
+ * ============================================================
+ * CONFIG LOCAL
+ * ============================================================
+ */
+
 function loadConfig() {
   try {
     return {
       ...JSON.parse(
-        localStorage.getItem("casa_config") || "{}"
+        localStorage.getItem(
+          "casa_config"
+        ) || "{}"
       )
     };
   } catch {
@@ -94,28 +151,55 @@ function loadConfig() {
   }
 }
 
-function hexToRgba(hex, alpha) {
-  const clean = hex.replace("#", "");
-  const bigint = parseInt(clean, 16);
 
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
+/*
+ * ============================================================
+ * UTILIDADES
+ * ============================================================
+ */
+
+function hexToRgba(
+  hex,
+  alpha
+) {
+  const clean =
+    hex.replace("#", "");
+
+  const bigint =
+    parseInt(clean, 16);
+
+  const r =
+    (bigint >> 16) & 255;
+
+  const g =
+    (bigint >> 8) & 255;
+
+  const b =
+    bigint & 255;
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function formatElapsed(ms) {
-  const totalSeconds = Math.max(
-    0,
-    Math.floor(ms / 1000)
-  );
 
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor(
-    (totalSeconds % 3600) / 60
-  );
-  const s = totalSeconds % 60;
+function formatElapsed(ms) {
+  const totalSeconds =
+    Math.max(
+      0,
+      Math.floor(ms / 1000)
+    );
+
+  const h =
+    Math.floor(
+      totalSeconds / 3600
+    );
+
+  const m =
+    Math.floor(
+      (totalSeconds % 3600) / 60
+    );
+
+  const s =
+    totalSeconds % 60;
 
   const pad = (n) =>
     String(n).padStart(2, "0");
@@ -125,23 +209,86 @@ function formatElapsed(ms) {
     : `${pad(m)}:${pad(s)}`;
 }
 
+
+/*
+ * ============================================================
+ * BASE PATH
+ * ============================================================
+ *
+ * Permite trabajar:
+ *
+ * 1. Directamente:
+ *    http://IP:8099
+ *
+ * 2. Mediante Home Assistant Ingress:
+ *    /api/hassio_ingress/xxxx
+ *
+ * Las peticiones siempre se quedan dentro
+ * del mismo origen.
+ */
+
+function getAppBasePath() {
+  const pathname =
+    window.location.pathname;
+
+  const match =
+    pathname.match(
+      /^\/api\/hassio_ingress\/[^/]+/
+    );
+
+  return match
+    ? match[0]
+    : "";
+}
+
+
+function getApiUrl(pathname) {
+  const base =
+    getAppBasePath();
+
+  return `${base}${pathname}`;
+}
+
+
+function getWebSocketUrl() {
+  const protocol =
+    window.location.protocol ===
+    "https:"
+      ? "wss:"
+      : "ws:";
+
+  const base =
+    getAppBasePath();
+
+  return `${protocol}//${window.location.host}${base}/api/websocket`;
+}
+
+
+/*
+ * ============================================================
+ * APP
+ * ============================================================
+ */
+
 function App() {
-  const [config, setConfig] = useState(
-    loadConfig()
-  );
+  const [config, setConfig] =
+    useState(loadConfig());
 
-  const [page, setPage] = useState(
-    "Domótica"
-  );
+  const [page, setPage] =
+    useState("Domótica");
 
-  const [dark, setDark] = useState(
-    localStorage.getItem("casa_dark") === "1"
-  );
+  const [dark, setDark] =
+    useState(
+      localStorage.getItem(
+        "casa_dark"
+      ) === "1"
+    );
 
   const [connected, setConnected] =
     useState(false);
 
-  const [states, setStates] = useState({});
+  const [states, setStates] =
+    useState({});
 
   const [message, setMessage] =
     useState("");
@@ -157,7 +304,8 @@ function App() {
   const [fullscreen, setFullscreen] =
     useState(false);
 
-  const wsRef = useRef(null);
+  const wsRef =
+    useRef(null);
 
   const [
     calendarEntities,
@@ -196,9 +344,18 @@ function App() {
     setCalendarModal
   ] = useState(false);
 
+
+  /*
+   * ==========================================================
+   * TEMA
+   * ==========================================================
+   */
+
   useEffect(() => {
     document.documentElement.dataset.theme =
-      dark ? "dark" : "light";
+      dark
+        ? "dark"
+        : "light";
 
     localStorage.setItem(
       "casa_dark",
@@ -206,15 +363,22 @@ function App() {
     );
   }, [dark]);
 
+
   /*
-   * Pantalla completa
+   * ==========================================================
+   * FULLSCREEN
+   * ==========================================================
    */
+
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setFullscreen(
-        Boolean(document.fullscreenElement)
-      );
-    };
+    const handleFullscreenChange =
+      () => {
+        setFullscreen(
+          Boolean(
+            document.fullscreenElement
+          )
+        );
+      };
 
     document.addEventListener(
       "fullscreenchange",
@@ -229,9 +393,12 @@ function App() {
     };
   }, []);
 
+
   async function toggleFullscreen() {
     try {
-      if (document.fullscreenElement) {
+      if (
+        document.fullscreenElement
+      ) {
         await document.exitFullscreen();
       } else {
         await document.documentElement.requestFullscreen();
@@ -252,12 +419,13 @@ function App() {
     }
   }
 
+
   /*
-   * WebSocket con el proxy de Dashboard Casa.
-   *
-   * El navegador NO conoce ni necesita el token
-   * de Home Assistant.
+   * ==========================================================
+   * WEBSOCKET HOME ASSISTANT
+   * ==========================================================
    */
+
   useEffect(() => {
     let ws = null;
     let alive = true;
@@ -269,15 +437,16 @@ function App() {
       }
 
       try {
-        const protocol =
-          window.location.protocol === "https:"
-            ? "wss:"
-            : "ws:";
-
         const wsUrl =
-          `${protocol}//${window.location.host}/api/websocket`;
+          getWebSocketUrl();
 
-        ws = new WebSocket(wsUrl);
+        console.log(
+          "Conectando WebSocket:",
+          wsUrl
+        );
+
+        ws =
+          new WebSocket(wsUrl);
 
         wsRef.current = ws;
 
@@ -287,18 +456,34 @@ function App() {
           );
         };
 
-        ws.onmessage = (event) => {
+
+        ws.onmessage = (
+          event
+        ) => {
           try {
-            const msg = JSON.parse(
-              event.data
+            const msg =
+              JSON.parse(
+                event.data
+              );
+
+            console.log(
+              "WebSocket:",
+              msg
             );
 
+
             /*
-             * El backend autentica contra Home Assistant.
-             * El frontend no envía ningún token.
+             * El backend autentica
+             * contra Home Assistant.
+             *
+             * Cuando recibimos auth_ok,
+             * ya podemos utilizar el WebSocket.
              */
 
-            if (msg.type === "auth_ok") {
+            if (
+              msg.type ===
+              "auth_ok"
+            ) {
               console.log(
                 "Home Assistant autenticado mediante el backend"
               );
@@ -307,6 +492,11 @@ function App() {
                 setConnected(true);
               }
 
+
+              /*
+               * Obtener estados
+               */
+
               ws.send(
                 JSON.stringify({
                   id: 1,
@@ -314,34 +504,50 @@ function App() {
                 })
               );
 
+
+              /*
+               * Suscripción a cambios
+               */
+
               ws.send(
                 JSON.stringify({
                   id: 2,
                   type: "subscribe_events",
-                  event_type: "state_changed"
-                })
-              );
-
-              /*
-               * Pedimos también las entidades de calendario.
-               */
-              ws.send(
-                JSON.stringify({
-                  id: 3,
-                  type: "get_entities",
-                  domain: "calendar"
+                  event_type:
+                    "state_changed"
                 })
               );
 
               return;
             }
 
+
+            /*
+             * Si HA devuelve auth_required,
+             * NO enviamos token.
+             *
+             * El backend debería encargarse
+             * de esta autenticación.
+             */
+
             if (
-              msg.type === "auth_invalid" ||
-              msg.type === "auth_required"
+              msg.type ===
+              "auth_required"
+            ) {
+              console.log(
+                "Home Assistant ha solicitado autenticación; la gestiona el backend."
+              );
+
+              return;
+            }
+
+
+            if (
+              msg.type ===
+              "auth_invalid"
             ) {
               console.error(
-                "Home Assistant solicita autenticación"
+                "Home Assistant rechazó la autenticación del backend."
               );
 
               if (alive) {
@@ -351,19 +557,24 @@ function App() {
               return;
             }
 
+
             /*
-             * Estados iniciales
+             * Resultado get_states
              */
+
             if (
               msg.id === 1 &&
               msg.success
             ) {
-              const map = Object.fromEntries(
-                msg.result.map((entity) => [
-                  entity.entity_id,
-                  entity
-                ])
-              );
+              const map =
+                Object.fromEntries(
+                  msg.result.map(
+                    (entity) => [
+                      entity.entity_id,
+                      entity
+                    ]
+                  )
+                );
 
               if (alive) {
                 setStates(map);
@@ -372,58 +583,11 @@ function App() {
               return;
             }
 
-            /*
-             * Entidades de calendario
-             */
-            if (
-              msg.id === 3 &&
-              msg.success
-            ) {
-              const calendars =
-                Array.isArray(msg.result)
-                  ? msg.result
-                  : [];
-
-              const filtered =
-                calendars.filter(
-                  (entity) =>
-                    entity.entity_id?.startsWith(
-                      "calendar."
-                    )
-                );
-
-              if (alive) {
-                setCalendarEntities(
-                  filtered
-                );
-
-                setCalendarEntity(
-                  (current) => {
-                    if (
-                      current &&
-                      filtered.some(
-                        (entity) =>
-                          entity.entity_id ===
-                          current
-                      )
-                    ) {
-                      return current;
-                    }
-
-                    return (
-                      filtered[0]
-                        ?.entity_id || ""
-                    );
-                  }
-                );
-              }
-
-              return;
-            }
 
             /*
-             * Suscripción activa
+             * Resultado suscripción
              */
+
             if (
               msg.id === 2 &&
               msg.success
@@ -435,11 +599,14 @@ function App() {
               return;
             }
 
+
             /*
-             * Cambios de estado
+             * Eventos state_changed
              */
+
             if (
-              msg.type === "event" &&
+              msg.type ===
+                "event" &&
               msg.event &&
               msg.event.event_type ===
                 "state_changed"
@@ -470,7 +637,8 @@ function App() {
               setStates(
                 (previous) => ({
                   ...previous,
-                  [entityId]: newState
+                  [entityId]:
+                    newState
                 })
               );
             }
@@ -481,6 +649,7 @@ function App() {
             );
           }
         };
+
 
         ws.onclose = () => {
           console.log(
@@ -502,7 +671,10 @@ function App() {
           }
         };
 
-        ws.onerror = (error) => {
+
+        ws.onerror = (
+          error
+        ) => {
           console.error(
             "Error WebSocket:",
             error
@@ -549,83 +721,27 @@ function App() {
     };
   }, []);
 
-  function normalizeCalendarEvents(
-    data
-  ) {
-    const list = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.events)
-        ? data.events
-        : [];
-
-    return list.map((event) => ({
-      ...event,
-      start:
-        typeof event.start === "object"
-          ? (
-              event.start?.dateTime ||
-              event.start?.date ||
-              ""
-            )
-          : event.start,
-
-      end:
-        typeof event.end === "object"
-          ? (
-              event.end?.dateTime ||
-              event.end?.date ||
-              ""
-            )
-          : event.end
-    }));
-  }
 
   /*
-   * Cargar eventos del calendario.
-   *
-   * Se utiliza el proxy del propio Dashboard.
-   * No se envía token desde el navegador.
+   * ==========================================================
+   * CALENDARIO - LISTA DE CALENDARIOS
+   * ==========================================================
    */
+
   useEffect(() => {
-    if (
-      !connected ||
-      !calendarEntity
-    ) {
+    if (!connected) {
       return;
     }
 
     let cancelled = false;
 
-    const start = new Date(
-      calendarMonth.getFullYear(),
-      calendarMonth.getMonth(),
-      1
-    );
-
-    const end = new Date(
-      calendarMonth.getFullYear(),
-      calendarMonth.getMonth() + 1,
-      1
-    );
-
-    async function loadCalendarEvents() {
-      setCalendarLoading(true);
-      setCalendarEvents([]);
-
+    async function loadCalendars() {
       try {
-        const params =
-          new URLSearchParams({
-            start:
-              start.toISOString(),
-            end:
-              end.toISOString()
-          });
-
         const response =
           await fetch(
-            `/api/calendars/${encodeURIComponent(
-              calendarEntity
-            )}?${params.toString()}`
+            getApiUrl(
+              "/api/calendars"
+            )
           );
 
         if (!response.ok) {
@@ -636,6 +752,157 @@ function App() {
 
         const data =
           await response.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        const list =
+          Array.isArray(data)
+            ? data
+            : [];
+
+        setCalendarEntities(
+          list
+        );
+
+        if (
+          list.length > 0 &&
+          !calendarEntity
+        ) {
+          setCalendarEntity(
+            list[0].entity_id
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Error cargando calendarios:",
+          error
+        );
+
+        if (!cancelled) {
+          setCalendarEntities([]);
+        }
+      }
+    }
+
+    loadCalendars();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connected]);
+
+
+  /*
+   * ==========================================================
+   * CALENDARIO - EVENTOS
+   * ==========================================================
+   */
+
+  function normalizeCalendarEvents(
+    data
+  ) {
+    const list =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(
+            data?.events
+          )
+        ? data.events
+        : [];
+
+    return list.map(
+      (event) => ({
+        ...event,
+
+        start:
+          typeof event.start ===
+          "object"
+            ? event.start
+                ?.dateTime ||
+              event.start
+                ?.date ||
+              ""
+            : event.start,
+
+        end:
+          typeof event.end ===
+          "object"
+            ? event.end
+                ?.dateTime ||
+              event.end?.date ||
+              ""
+            : event.end
+      })
+    );
+  }
+
+
+  useEffect(() => {
+    if (
+      !connected ||
+      !calendarEntity
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const start =
+      new Date(
+        calendarMonth.getFullYear(),
+        calendarMonth.getMonth(),
+        1
+      );
+
+    const end =
+      new Date(
+        calendarMonth.getFullYear(),
+        calendarMonth.getMonth() + 1,
+        1
+      );
+
+
+    async function loadCalendarEvents() {
+      setCalendarLoading(
+        true
+      );
+
+      setCalendarEvents([]);
+
+
+      try {
+        const params =
+          new URLSearchParams({
+            start:
+              start.toISOString(),
+
+            end:
+              end.toISOString()
+          });
+
+
+        const response =
+          await fetch(
+            `${getApiUrl(
+              `/api/calendars/${encodeURIComponent(
+                calendarEntity
+              )}`
+            )}?${params.toString()}`
+          );
+
+
+        if (!response.ok) {
+          throw new Error(
+            `HTTP ${response.status}`
+          );
+        }
+
+
+        const data =
+          await response.json();
+
 
         if (!cancelled) {
           setCalendarEvents(
@@ -663,12 +930,16 @@ function App() {
         }
       } finally {
         if (!cancelled) {
-          setCalendarLoading(false);
+          setCalendarLoading(
+            false
+          );
         }
       }
     }
 
+
     loadCalendarEvents();
+
 
     return () => {
       cancelled = true;
@@ -679,9 +950,13 @@ function App() {
     calendarMonth
   ]);
 
+
   /*
-   * Crear evento.
+   * ==========================================================
+   * CREAR EVENTO
+   * ==========================================================
    */
+
   async function createCalendarEvent(
     data
   ) {
@@ -689,29 +964,38 @@ function App() {
       return false;
     }
 
+
     try {
       const response =
         await fetch(
-          "/api/services/calendar/create_event",
+          getApiUrl(
+            "/api/services/calendar/create_event"
+          ),
           {
             method: "POST",
+
             headers: {
               "Content-Type":
                 "application/json"
             },
+
             body: JSON.stringify({
               entity_id:
                 calendarEntity,
+
               ...data
             })
           }
         );
 
+
       if (!response.ok) {
         const text =
           await response
             .text()
-            .catch(() => "");
+            .catch(
+              () => ""
+            );
 
         throw new Error(
           `HTTP ${response.status}${
@@ -722,45 +1006,59 @@ function App() {
         );
       }
 
+
       setMessage(
         "Evento creado en Google Calendar"
       );
 
-      setCalendarModal(false);
+      setCalendarModal(
+        false
+      );
+
 
       setTimeout(() => {
         setMessage("");
       }, 2200);
 
-      /*
-       * Recarga inmediata.
-       */
-      const start = new Date(
-        calendarMonth.getFullYear(),
-        calendarMonth.getMonth(),
-        1
-      );
 
-      const end = new Date(
-        calendarMonth.getFullYear(),
-        calendarMonth.getMonth() + 1,
-        1
-      );
+      /*
+       * Recarga inmediata
+       */
+
+      const start =
+        new Date(
+          calendarMonth.getFullYear(),
+          calendarMonth.getMonth(),
+          1
+        );
+
+      const end =
+        new Date(
+          calendarMonth.getFullYear(),
+          calendarMonth.getMonth() + 1,
+          1
+        );
+
 
       const params =
         new URLSearchParams({
           start:
             start.toISOString(),
+
           end:
             end.toISOString()
         });
 
+
       const refresh =
         await fetch(
-          `/api/calendars/${encodeURIComponent(
-            calendarEntity
+          `${getApiUrl(
+            `/api/calendars/${encodeURIComponent(
+              calendarEntity
+            )}`
           )}?${params.toString()}`
         );
+
 
       if (refresh.ok) {
         const refreshed =
@@ -772,6 +1070,7 @@ function App() {
           )
         );
       }
+
 
       return true;
     } catch (error) {
@@ -792,21 +1091,47 @@ function App() {
     }
   }
 
-  const state = (entityId) => {
-    return states[entityId]?.state;
+
+  /*
+   * ==========================================================
+   * ESTADOS HOME ASSISTANT
+   * ==========================================================
+   */
+
+  const state = (
+    entityId
+  ) => {
+    return states[
+      entityId
+    ]?.state;
   };
 
+
   const lampOn =
-    state(ENTITIES.lamp) === "on";
+    state(
+      ENTITIES.lamp
+    ) === "on";
+
 
   const freezerOpen =
-    state(ENTITIES.freezer) === "on";
+    state(
+      ENTITIES.freezer
+    ) === "on";
+
 
   const power =
-    state(ENTITIES.power);
+    state(
+      ENTITIES.power
+    );
+
 
   const energy =
-    Number(state(ENTITIES.energy));
+    Number(
+      state(
+        ENTITIES.energy
+      )
+    );
+
 
   const price =
     Number(
@@ -814,42 +1139,54 @@ function App() {
         DEFAULT_PRICE
     );
 
+
   const yesterdayKwh =
     Number(
       config.yesterdayKwh ?? 0
     );
 
+
   const yesterdayCost =
     yesterdayKwh * price;
 
+
   /*
-   * Cronómetro del congelador.
+   * ==========================================================
+   * CRONÓMETRO CONGELADOR
+   * ==========================================================
    */
+
   useEffect(() => {
     if (freezerOpen) {
       setFreezerOpenSince(
         (previous) =>
-          previous ?? Date.now()
+          previous ??
+          Date.now()
       );
     } else {
-      setFreezerOpenSince(null);
+      setFreezerOpenSince(
+        null
+      );
     }
   }, [freezerOpen]);
+
 
   useEffect(() => {
     if (!freezerOpen) {
       return;
     }
 
-    const id = setInterval(() => {
-      setNowTick(
-        Date.now()
-      );
-    }, 1000);
+    const id =
+      setInterval(() => {
+        setNowTick(
+          Date.now()
+        );
+      }, 1000);
 
     return () =>
       clearInterval(id);
   }, [freezerOpen]);
+
 
   const freezerElapsedMs =
     freezerOpenSince
@@ -857,13 +1194,27 @@ function App() {
         freezerOpenSince
       : 0;
 
+
   /*
-   * Ejecutar servicio de Home Assistant.
+   * ==========================================================
+   * LLAMAR SERVICIO HOME ASSISTANT
+   * ==========================================================
    *
    * IMPORTANTE:
-   * No usamos URL ni token.
-   * El backend/proxy se encarga de HA.
+   *
+   * Nunca usamos:
+   *
+   *   http://192.168.x.x:8123
+   *
+   * Nunca usamos token.
+   *
+   * Todo pasa por:
+   *
+   *   /api/services/...
+   *
+   * y server.mjs se encarga de Home Assistant.
    */
+
   async function callService(
     domain,
     service,
@@ -872,28 +1223,46 @@ function App() {
     try {
       const response =
         await fetch(
-          `/api/services/${domain}/${service}`,
+          getApiUrl(
+            `/api/services/${domain}/${service}`
+          ),
           {
             method: "POST",
+
             headers: {
               "Content-Type":
                 "application/json"
             },
+
             body: JSON.stringify({
               entity_id
             })
           }
         );
 
+
       if (!response.ok) {
+        const text =
+          await response
+            .text()
+            .catch(
+              () => ""
+            );
+
         throw new Error(
-          `HTTP ${response.status}`
+          `HTTP ${response.status}${
+            text
+              ? `: ${text}`
+              : ""
+          }`
         );
       }
+
 
       setMessage(
         "Acción enviada"
       );
+
 
       setTimeout(() => {
         setMessage("");
@@ -904,9 +1273,11 @@ function App() {
         error
       );
 
+
       setMessage(
         "No se pudo conectar con Home Assistant"
       );
+
 
       setTimeout(() => {
         setMessage("");
@@ -914,33 +1285,51 @@ function App() {
     }
   }
 
+
+  /*
+   * ==========================================================
+   * NAVEGACIÓN
+   * ==========================================================
+   */
+
   const nav = [
     [
       "Domótica",
       House,
       "#0a84ff"
     ],
+
     [
       "Tareas",
       CheckSquare,
       "#30d158"
     ],
+
     [
       "Compra",
       ShoppingCart,
       "#ff9f0a"
     ],
+
     [
       "Calendario",
       CalendarDays,
       "#ff375f"
     ],
+
     [
       "Ajustes",
       Settings,
       "#8e8e93"
     ]
   ];
+
+
+  /*
+   * ==========================================================
+   * RENDER
+   * ==========================================================
+   */
 
   return (
     <div
@@ -950,98 +1339,122 @@ function App() {
           : "app"
       }
     >
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-icon">
-            <House size={22} />
+
+      {!fullscreen && (
+        <aside className="sidebar">
+
+          <div className="sidebar-brand">
+            <div className="brand-icon">
+              <House size={24} />
+            </div>
+
+            <div>
+              <b>Mi Casa</b>
+              <span>
+                Dashboard
+              </span>
+            </div>
           </div>
 
-          <div>
-            <b>Mi Casa</b>
-            <span>Dashboard</span>
-          </div>
-        </div>
 
-        <nav className="cc-nav">
-          {nav.map(
-            ([
-              name,
-              Icon,
-              color
-            ]) => (
-              <button
-                key={name}
-                className={
-                  page === name
-                    ? "cc-tile active"
-                    : "cc-tile"
-                }
-                style={
-                  page === name
-                    ? {
-                        "--tile-color":
-                          color,
-                        "--tile-bg":
-                          hexToRgba(
+          <nav className="cc-nav">
+
+            {nav.map(
+              ([
+                name,
+                Icon,
+                color
+              ]) => (
+                <button
+                  key={name}
+                  className={
+                    page === name
+                      ? "cc-tile active"
+                      : "cc-tile"
+                  }
+
+                  style={
+                    page === name
+                      ? {
+                          "--tile-color":
                             color,
-                            0.22
-                          )
-                      }
-                    : undefined
-                }
-                onClick={() =>
-                  setPage(name)
-                }
-              >
-                <span className="cc-tile-icon">
-                  <Icon size={20} />
-                </span>
 
-                <span className="cc-tile-label">
-                  {name}
-                </span>
-              </button>
-            )
-          )}
-        </nav>
+                          "--tile-bg":
+                            hexToRgba(
+                              color,
+                              0.22
+                            )
+                        }
+                      : undefined
+                  }
 
-        <div className="sidebar-bottom">
-          <button
-            className="theme-btn"
-            onClick={() =>
-              setDark(!dark)
-            }
-          >
-            {dark ? (
-              <Sun size={19} />
-            ) : (
-              <Moon size={19} />
+                  onClick={() =>
+                    setPage(name)
+                  }
+                >
+
+                  <span className="cc-tile-icon">
+                    <Icon size={20} />
+                  </span>
+
+                  <span className="cc-tile-label">
+                    {name}
+                  </span>
+
+                </button>
+              )
             )}
 
-            {dark
-              ? "Modo claro"
-              : "Modo oscuro"}
-          </button>
+          </nav>
 
-          <div
-            className={
-              connected
-                ? "connection ok"
-                : "connection"
-            }
-          >
-            {connected ? (
-              <Wifi size={16} />
-            ) : (
-              <WifiOff size={16} />
-            )}
 
-            {connected
-              ? "Conectado"
-              : "Sin conexión"}
+          <div className="sidebar-bottom">
+
+            <button
+              className="theme-btn"
+              onClick={() =>
+                setDark(!dark)
+              }
+            >
+
+              {dark ? (
+                <Sun size={19} />
+              ) : (
+                <Moon size={19} />
+              )}
+
+              {dark
+                ? "Modo claro"
+                : "Modo oscuro"}
+
+            </button>
+
+
+            <div
+              className={
+                connected
+                  ? "connection ok"
+                  : "connection"
+              }
+            >
+
+              {connected ? (
+                <Wifi size={16} />
+              ) : (
+                <WifiOff size={16} />
+              )}
+
+              {connected
+                ? "Conectado"
+                : "Sin conexión"}
+
+            </div>
+
           </div>
-        </div>
-      </aside>
+
+        </aside>
+      )}
+
 
       <main
         className={
@@ -1050,60 +1463,86 @@ function App() {
             : ""
         }
       >
+
         <button
           type="button"
           onClick={
             toggleFullscreen
           }
+
           aria-label={
             fullscreen
               ? "Salir de pantalla completa"
               : "Entrar en pantalla completa"
           }
+
           title={
             fullscreen
               ? "Salir de pantalla completa"
               : "Pantalla completa"
           }
+
           style={{
-            position: "fixed",
+            position:
+              "fixed",
+
             top: 16,
             right: 16,
+
             zIndex: 9999,
+
             width: 44,
             height: 44,
+
             border: "none",
+
             borderRadius: 16,
+
             display: "grid",
-            placeItems: "center",
-            cursor: "pointer",
+            placeItems:
+              "center",
+
+            cursor:
+              "pointer",
+
             background:
               "var(--card, rgba(20,20,25,.92))",
+
             color:
               "var(--text, currentColor)",
+
             boxShadow:
               "0 8px 24px rgba(0,0,0,.25)",
+
             backdropFilter:
               "blur(10px)"
           }}
         >
+
           {fullscreen ? (
             <Minimize size={20} />
           ) : (
             <Maximize size={20} />
           )}
+
         </button>
 
+
         <header>
+
           <div>
             <div className="eyebrow">
               MI CASA
             </div>
 
-            <h1>{page}</h1>
+            <h1>
+              {page}
+            </h1>
           </div>
 
+
           <div className="status-pill">
+
             {connected ? (
               <>
                 <Wifi size={15} />
@@ -1112,17 +1551,21 @@ function App() {
             ) : (
               <>
                 <WifiOff size={15} />
-                Configura HA
+                Sin conexión
               </>
             )}
+
           </div>
+
         </header>
+
 
         {message && (
           <div className="toast">
             {message}
           </div>
         )}
+
 
         {page === "Domótica" && (
           <section
@@ -1132,6 +1575,7 @@ function App() {
                 : "grid"
             }
           >
+
             <Card
               title="Temperatura"
               icon={
@@ -1143,6 +1587,7 @@ function App() {
               value="—"
               sub="Sin sensor todavía"
             />
+
 
             <Card
               title="Humedad"
@@ -1156,27 +1601,36 @@ function App() {
               sub="Sin sensor todavía"
             />
 
+
             <section className="card cc-toggle-card">
+
               <CardHead
-                icon={<Lightbulb />}
+                icon={
+                  <Lightbulb />
+                }
                 title="Lámpara"
               />
 
+
               <button
                 type="button"
+
                 className={
                   lampOn
                     ? "cc-bubble on"
                     : "cc-bubble"
                 }
+
                 aria-pressed={
                   lampOn
                 }
+
                 aria-label={
                   lampOn
                     ? "Apagar lámpara"
                     : "Encender lámpara"
                 }
+
                 onClick={() =>
                   callService(
                     "switch",
@@ -1192,7 +1646,9 @@ function App() {
                 />
               </button>
 
+
               <div className="control-row">
+
                 <div
                   className={
                     lampOn
@@ -1214,8 +1670,11 @@ function App() {
                     ? "Toca para apagar"
                     : "Toca para encender"}
                 </span>
+
               </div>
+
             </section>
+
 
             <section
               className={
@@ -1224,15 +1683,21 @@ function App() {
                   : "card freezer-card"
               }
             >
+
               <CardHead
-                icon={<Snowflake />}
+                icon={
+                  <Snowflake />
+                }
+
                 title="Congelador"
+
                 right={
                   freezerOpen
                     ? "ATENCIÓN"
                     : undefined
                 }
               />
+
 
               <div
                 className={
@@ -1241,6 +1706,7 @@ function App() {
                     : "big-status"
                 }
               >
+
                 {freezerOpen ? (
                   <>
                     <AlertTriangle />
@@ -1252,7 +1718,9 @@ function App() {
                     Cerrado
                   </>
                 )}
+
               </div>
+
 
               {freezerOpen && (
                 <>
@@ -1268,26 +1736,35 @@ function App() {
                   </div>
                 </>
               )}
+
             </section>
 
+
             <section className="card wide">
+
               <CardHead
                 icon={<Tv />}
                 title="TV salón"
               />
 
+
               <div className="button-grid">
+
                 <ActionButton
                   className="app-tv cine"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.cine
                       }
+
                       name="Modo Cine"
+
                       bg={
                         ICON_BG.cine
                       }
+
                       fallback={
                         <Film
                           size={20}
@@ -1296,7 +1773,9 @@ function App() {
                       }
                     />
                   }
+
                   text="Modo Cine"
+
                   on={() =>
                     callService(
                       "script",
@@ -1306,17 +1785,22 @@ function App() {
                   }
                 />
 
+
                 <ActionButton
                   className="app-tv tvon"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.tvon
                       }
+
                       name="TV Encender"
+
                       bg={
                         ICON_BG.tvon
                       }
+
                       fallback={
                         <Power
                           size={20}
@@ -1325,7 +1809,9 @@ function App() {
                       }
                     />
                   }
+
                   text="TV Encender"
+
                   on={() =>
                     callService(
                       "script",
@@ -1335,17 +1821,22 @@ function App() {
                   }
                 />
 
+
                 <ActionButton
                   className="app-tv tvoff"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.tvoff
                       }
+
                       name="TV Apagar"
+
                       bg={
                         ICON_BG.tvoff
                       }
+
                       fallback={
                         <Power
                           size={20}
@@ -1354,7 +1845,9 @@ function App() {
                       }
                     />
                   }
+
                   text="TV Apagar"
+
                   on={() =>
                     callService(
                       "script",
@@ -1364,21 +1857,28 @@ function App() {
                   }
                 />
 
+
                 <ActionButton
                   className="app-tv netflix"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.netflix
                       }
+
                       name="Netflix"
+
                       bg={
                         ICON_BG.netflix
                       }
+
                       fallback="N"
                     />
                   }
+
                   text="Netflix"
+
                   on={() =>
                     callService(
                       "script",
@@ -1388,21 +1888,28 @@ function App() {
                   }
                 />
 
+
                 <ActionButton
                   className="app-tv hbo"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.hbo
                       }
+
                       name="HBO Max"
+
                       bg={
                         ICON_BG.hbo
                       }
+
                       fallback="H"
                     />
                   }
+
                   text="HBO Max"
+
                   on={() =>
                     callService(
                       "script",
@@ -1412,21 +1919,28 @@ function App() {
                   }
                 />
 
+
                 <ActionButton
                   className="app-tv prime"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.prime
                       }
+
                       name="Prime Video"
+
                       bg={
                         ICON_BG.prime
                       }
+
                       fallback="P"
                     />
                   }
+
                   text="Prime Video"
+
                   on={() =>
                     callService(
                       "script",
@@ -1436,21 +1950,28 @@ function App() {
                   }
                 />
 
+
                 <ActionButton
                   className="app-tv movistar"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.movistar
                       }
+
                       name="Movistar HDMI"
+
                       bg={
                         ICON_BG.movistar
                       }
+
                       fallback="M"
                     />
                   }
+
                   text="Movistar HDMI"
+
                   on={() =>
                     callService(
                       "script",
@@ -1460,17 +1981,22 @@ function App() {
                   }
                 />
 
+
                 <ActionButton
                   className="app-tv maxplayer"
+
                   icon={
                     <AppIcon
                       slug={
                         ICON_SLUGS.maxplayer
                       }
+
                       name="Max Player"
+
                       bg={
                         ICON_BG.maxplayer
                       }
+
                       fallback={
                         <Tv
                           size={20}
@@ -1479,7 +2005,9 @@ function App() {
                       }
                     />
                   }
+
                   text="Max Player"
+
                   on={() =>
                     callService(
                       "script",
@@ -1488,38 +2016,53 @@ function App() {
                     )
                   }
                 />
+
               </div>
+
             </section>
 
+
             <section className="card half">
+
               <CardHead
                 icon={<Blinds />}
                 title="Persianas"
                 right="Próximamente"
               />
 
+
               <div className="blind">
+
                 <div>
-                  <b>Salón</b>
+                  <b>
+                    Salón
+                  </b>
+
                   <span>
                     Sin entidad todavía
                   </span>
                 </div>
 
+
                 <div className="blind-buttons">
                   <button disabled>
                     ↑
                   </button>
+
                   <button disabled>
                     ■
                   </button>
+
                   <button disabled>
                     ↓
                   </button>
                 </div>
+
               </div>
 
+
               <div className="blind">
+
                 <div>
                   <b>
                     Habitación principal
@@ -1530,21 +2073,28 @@ function App() {
                   </span>
                 </div>
 
+
                 <div className="blind-buttons">
                   <button disabled>
                     ↑
                   </button>
+
                   <button disabled>
                     ■
                   </button>
+
                   <button disabled>
                     ↓
                   </button>
                 </div>
+
               </div>
+
             </section>
 
+
             <section className="card half">
+
               <CardHead
                 icon={<Zap />}
                 title="Consumo lámpara"
@@ -1553,7 +2103,9 @@ function App() {
                 )} €/kWh`}
               />
 
+
               <div className="stats">
+
                 <Stat
                   label="Ahora"
                   value={
@@ -1562,6 +2114,7 @@ function App() {
                       : "—"
                   }
                 />
+
 
                 <Stat
                   label="Energía acumulada"
@@ -1576,6 +2129,7 @@ function App() {
                   }
                 />
 
+
                 <Stat
                   label="Ayer"
                   value={
@@ -1587,6 +2141,7 @@ function App() {
                   }
                 />
 
+
                 <Stat
                   label="Coste ayer"
                   value={
@@ -1597,45 +2152,56 @@ function App() {
                       : "—"
                   }
                 />
+
               </div>
 
+
               <div className="mini-chart">
+
                 <span
                   style={{
                     height: "28%"
                   }}
                 />
+
                 <span
                   style={{
                     height: "44%"
                   }}
                 />
+
                 <span
                   style={{
                     height: "35%"
                   }}
                 />
+
                 <span
                   style={{
                     height: "65%"
                   }}
                 />
+
                 <span
                   style={{
                     height: "48%"
                   }}
                 />
+
                 <span
                   style={{
                     height: "30%"
                   }}
                 />
+
                 <span
                   style={{
                     height: "52%"
                   }}
                 />
+
               </div>
+
 
               <div className="chart-labels">
                 <span>L</span>
@@ -1647,41 +2213,52 @@ function App() {
                 <span>D</span>
               </div>
 
+
               <p className="hint">
-                El histórico de ayer
-                se añadirá usando
-                las estadísticas de
+                El histórico de ayer se añadirá
+                usando las estadísticas de
                 Home Assistant.
               </p>
+
             </section>
 
+
             <section className="card half">
+
               <CardHead
-                icon={<CheckSquare />}
+                icon={
+                  <CheckSquare />
+                }
                 title="Tareas"
               />
 
               <p className="muted">
-                Próximamente aquí
-                verás tus tareas
-                pendientes.
+                Próximamente aquí verás tus
+                tareas pendientes.
               </p>
+
             </section>
 
+
             <section className="card half">
+
               <CardHead
-                icon={<CalendarDays />}
+                icon={
+                  <CalendarDays />
+                }
                 title="Calendario"
               />
 
               <p className="muted">
-                Próximamente aquí
-                verás tus próximos
-                eventos.
+                Próximamente aquí verás tus
+                próximos eventos.
               </p>
+
             </section>
+
           </section>
         )}
+
 
         {page === "Tareas" && (
           <Placeholder
@@ -1693,6 +2270,7 @@ function App() {
           />
         )}
 
+
         {page === "Compra" && (
           <Placeholder
             icon={
@@ -1703,46 +2281,61 @@ function App() {
           />
         )}
 
+
         {page === "Calendario" && (
           <CalendarPage
-            connected={connected}
+            connected={
+              connected
+            }
+
             calendarEntities={
               calendarEntities
             }
+
             calendarEntity={
               calendarEntity
             }
+
             setCalendarEntity={
               setCalendarEntity
             }
+
             calendarMonth={
               calendarMonth
             }
+
             setCalendarMonth={
               setCalendarMonth
             }
+
             calendarEvents={
               calendarEvents
             }
+
             calendarLoading={
               calendarLoading
             }
+
             onAdd={() =>
               setCalendarModal(
                 true
               )
             }
+
             calendarModal={
               calendarModal
             }
+
             setCalendarModal={
               setCalendarModal
             }
+
             onCreate={
               createCalendarEvent
             }
           />
         )}
+
 
         {page === "Ajustes" && (
           <SettingsPage
@@ -1750,10 +2343,19 @@ function App() {
             setConfig={setConfig}
           />
         )}
+
       </main>
+
     </div>
   );
 }
+
+
+/*
+ * ============================================================
+ * CARD
+ * ============================================================
+ */
 
 function Card({
   title,
@@ -1764,6 +2366,7 @@ function Card({
 }) {
   return (
     <section className="card">
+
       <CardHead
         icon={icon}
         title={title}
@@ -1782,9 +2385,17 @@ function Card({
       <p className="muted">
         {sub}
       </p>
+
     </section>
   );
 }
+
+
+/*
+ * ============================================================
+ * CARD HEADER
+ * ============================================================
+ */
 
 function CardHead({
   icon,
@@ -1793,19 +2404,32 @@ function CardHead({
 }) {
   return (
     <div className="card-head">
+
       <div className="card-title">
         {icon}
-        <span>{title}</span>
+
+        <span>
+          {title}
+        </span>
       </div>
+
 
       {right && (
         <span className="badge">
           {right}
         </span>
       )}
+
     </div>
   );
 }
+
+
+/*
+ * ============================================================
+ * ICONO APP
+ * ============================================================
+ */
 
 function AppIcon({
   slug,
@@ -1817,11 +2441,13 @@ function AppIcon({
     useState(false);
 
   const showImage =
-    Boolean(slug) && !failed;
+    Boolean(slug) &&
+    !failed;
 
   return (
     <div
       className="app-icon-tile"
+
       style={{
         width: 44,
         height: 44,
@@ -1830,18 +2456,23 @@ function AppIcon({
         display: "grid",
         placeItems: "center",
         flex: "none",
+
         boxShadow:
           "0 4px 12px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.14)",
+
         ...bg
       }}
     >
+
       {showImage ? (
         <img
           src={`https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/${slug}.svg`}
           alt={name}
+
           onError={() =>
             setFailed(true)
           }
+
           style={{
             width: 22,
             height: 22,
@@ -1864,9 +2495,17 @@ function AppIcon({
       ) : (
         fallback
       )}
+
     </div>
   );
 }
+
+
+/*
+ * ============================================================
+ * ACTION BUTTON
+ * ============================================================
+ */
 
 function ActionButton({
   icon,
@@ -1886,8 +2525,10 @@ function ActionButton({
       ]
         .filter(Boolean)
         .join(" ")}
+
       onClick={on}
     >
+
       {icon}
 
       <span className="app-name">
@@ -1898,9 +2539,17 @@ function ActionButton({
         className="app-arrow"
         size={17}
       />
+
     </button>
   );
 }
+
+
+/*
+ * ============================================================
+ * STAT
+ * ============================================================
+ */
 
 function Stat({
   label,
@@ -1908,11 +2557,25 @@ function Stat({
 }) {
   return (
     <div className="stat">
-      <span>{label}</span>
-      <strong>{value}</strong>
+
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+
     </div>
   );
 }
+
+
+/*
+ * ============================================================
+ * CALENDAR
+ * ============================================================
+ */
 
 function CalendarPage({
   connected,
@@ -1934,11 +2597,12 @@ function CalendarPage({
   const month =
     calendarMonth.getMonth();
 
-  const firstDay = new Date(
-    year,
-    month,
-    1
-  );
+  const firstDay =
+    new Date(
+      year,
+      month,
+      1
+    );
 
   const daysInMonth =
     new Date(
@@ -1958,26 +2622,28 @@ function CalendarPage({
         7
     ) * 7;
 
-  const cells = Array.from(
-    {
-      length: totalCells
-    },
-    (_, index) => {
-      const day =
-        index -
-        mondayOffset +
-        1;
+  const cells =
+    Array.from(
+      {
+        length: totalCells
+      },
+      (_, index) => {
+        const day =
+          index -
+          mondayOffset +
+          1;
 
-      return day >= 1 &&
-        day <= daysInMonth
-        ? new Date(
-            year,
-            month,
-            day
-          )
-        : null;
-    }
-  );
+        return day >= 1 &&
+          day <= daysInMonth
+          ? new Date(
+              year,
+              month,
+              day
+            )
+          : null;
+      }
+    );
+
 
   const monthName =
     calendarMonth.toLocaleDateString(
@@ -1988,67 +2654,70 @@ function CalendarPage({
       }
     );
 
-  const eventDate = (
-    value
-  ) => {
-    if (!value) {
-      return null;
-    }
 
-    const d =
-      value.length === 10
-        ? new Date(
-            `${value}T00:00:00`
-          )
-        : new Date(value);
-
-    return Number.isNaN(
-      d.getTime()
-    )
-      ? null
-      : d;
-  };
-
-  const eventsForDay = (
-    date
-  ) =>
-    calendarEvents.filter(
-      (event) => {
-        const start =
-          eventDate(
-            event.start
-          );
-
-        const end =
-          eventDate(
-            event.end
-          );
-
-        if (!start || !end) {
-          return false;
-        }
-
-        const dayStart =
-          new Date(
-            date.getFullYear(),
-            date.getMonth(),
-            date.getDate()
-          );
-
-        const dayEnd =
-          new Date(
-            date.getFullYear(),
-            date.getMonth(),
-            date.getDate() +
-              1
-          );
-
-        return (
-          start < dayEnd &&
-          end > dayStart
-        );
+  const eventDate =
+    (value) => {
+      if (!value) {
+        return null;
       }
-    );
+
+      const d =
+        value.length === 10
+          ? new Date(
+              `${value}T00:00:00`
+            )
+          : new Date(value);
+
+      return Number.isNaN(
+        d.getTime()
+      )
+        ? null
+        : d;
+    };
+
+
+  const eventsForDay =
+    (date) =>
+      calendarEvents.filter(
+        (event) => {
+          const start =
+            eventDate(
+              event.start
+            );
+
+          const end =
+            eventDate(
+              event.end
+            );
+
+          if (
+            !start ||
+            !end
+          ) {
+            return false;
+          }
+
+          const dayStart =
+            new Date(
+              date.getFullYear(),
+              date.getMonth(),
+              date.getDate()
+            );
+
+          const dayEnd =
+            new Date(
+              date.getFullYear(),
+              date.getMonth(),
+              date.getDate() + 1
+            );
+
+          return (
+            start < dayEnd &&
+            end > dayStart
+          );
+        }
+      );
+
 
   const formatEventTime =
     (event) => {
@@ -2074,9 +2743,12 @@ function CalendarPage({
       );
     };
 
+
   return (
     <section className="card calendar-page">
+
       <div className="calendar-header">
+
         <div>
           <div className="eyebrow">
             GOOGLE CALENDAR
@@ -2090,126 +2762,144 @@ function CalendarPage({
           </h2>
         </div>
 
-        <div className="calendar-controls">
-          {calendarEntities.length >
-            0 && (
-            <select
-              value={
-                calendarEntity
-              }
-              onChange={(e) =>
-                setCalendarEntity(
-                  e.target.value
-                )
-              }
-            >
-              {calendarEntities.map(
-                (calendar) => (
-                  <option
-                    key={
-                      calendar.entity_id
-                    }
-                    value={
-                      calendar.entity_id
-                    }
-                  >
-                    {calendar.attributes
-                      ?.friendly_name ||
-                      calendar.entity_id}
-                  </option>
-                )
-              )}
-            </select>
-          )}
 
-          <button
-            className="calendar-nav-btn"
-            onClick={() =>
-              setCalendarMonth(
-                new Date(
-                  year,
-                  month - 1,
-                  1
-                )
-              )
+        {calendarEntities.length >
+          0 && (
+          <select
+            value={
+              calendarEntity
             }
-            title="Mes anterior"
-          >
-            <ChevronLeft
-              size={18}
-            />
-          </button>
 
-          <button
-            className="calendar-today"
-            onClick={() =>
-              setCalendarMonth(
-                new Date(
-                  new Date().getFullYear(),
-                  new Date().getMonth(),
-                  1
-                )
+            onChange={(e) =>
+              setCalendarEntity(
+                e.target.value
               )
             }
           >
-            Hoy
-          </button>
 
-          <button
-            className="calendar-nav-btn"
-            onClick={() =>
-              setCalendarMonth(
-                new Date(
-                  year,
-                  month + 1,
-                  1
-                )
+            {calendarEntities.map(
+              (calendar) => (
+                <option
+                  key={
+                    calendar.entity_id
+                  }
+                  value={
+                    calendar.entity_id
+                  }
+                >
+                  {calendar.name ||
+                    calendar.entity_id}
+                </option>
               )
-            }
-            title="Mes siguiente"
-          >
-            <ChevronRight
-              size={18}
-            />
-          </button>
+            )}
 
-          <button
-            className="calendar-add"
-            onClick={onAdd}
-            disabled={
-              !connected ||
-              !calendarEntity
-            }
-          >
-            <Plus size={16} />
-            Nuevo evento
-          </button>
-        </div>
+          </select>
+        )}
+
       </div>
+
+
+      <div className="calendar-toolbar">
+
+        <button
+          className="calendar-nav-btn"
+
+          onClick={() =>
+            setCalendarMonth(
+              new Date(
+                year,
+                month - 1,
+                1
+              )
+            )
+          }
+
+          title="Mes anterior"
+        >
+          <ChevronLeft
+            size={18}
+          />
+        </button>
+
+
+        <button
+          className="calendar-today"
+
+          onClick={() =>
+            setCalendarMonth(
+              new Date(
+                new Date().getFullYear(),
+                new Date().getMonth(),
+                1
+              )
+            )
+          }
+        >
+          Hoy
+        </button>
+
+
+        <button
+          className="calendar-nav-btn"
+
+          onClick={() =>
+            setCalendarMonth(
+              new Date(
+                year,
+                month + 1,
+                1
+              )
+            )
+          }
+
+          title="Mes siguiente"
+        >
+          <ChevronRight
+            size={18}
+          />
+        </button>
+
+
+        <button
+          className="calendar-add"
+
+          onClick={onAdd}
+
+          disabled={
+            !connected ||
+            !calendarEntity
+          }
+        >
+          <Plus size={16} />
+          Nuevo evento
+        </button>
+
+      </div>
+
 
       {!connected && (
         <div className="calendar-empty">
-          Conecta Home Assistant
-          para cargar tus
-          calendarios de Google.
+          Conecta Home Assistant para cargar tus calendarios de Google.
         </div>
       )}
+
 
       {connected &&
         calendarEntities.length ===
           0 && (
           <div className="calendar-empty">
-            No se ha encontrado
-            ningún calendario de
-            Google.
+            No se ha encontrado ningún calendario de Google.
           </div>
         )}
+
 
       {connected &&
         calendarEntities.length >
           0 && (
           <div className="calendar-shell">
+
             <div className="calendar-weekdays">
+
               {[
                 "L",
                 "M",
@@ -2218,14 +2908,19 @@ function CalendarPage({
                 "V",
                 "S",
                 "D"
-              ].map((day) => (
-                <div key={day}>
-                  {day}
-                </div>
-              ))}
+              ].map(
+                (day) => (
+                  <div key={day}>
+                    {day}
+                  </div>
+                )
+              )}
+
             </div>
 
+
             <div className="calendar-grid">
+
               {cells.map(
                 (
                   date,
@@ -2254,20 +2949,21 @@ function CalendarPage({
                             }`
                           : "calendar-day outside"
                       }
+
                       key={index}
                     >
+
                       {date && (
                         <div className="calendar-day-number">
                           {date.getDate()}
                         </div>
                       )}
 
+
                       <div className="calendar-events">
+
                         {events
-                          .slice(
-                            0,
-                            4
-                          )
+                          .slice(0, 4)
                           .map(
                             (
                               event,
@@ -2275,12 +2971,15 @@ function CalendarPage({
                             ) => (
                               <div
                                 className="calendar-event"
+
                                 key={`${event.summary}-${event.start}-${eventIndex}`}
+
                                 title={
                                   event.description ||
                                   event.summary
                                 }
                               >
+
                                 <span className="calendar-event-dot" />
 
                                 <span className="calendar-event-time">
@@ -2292,9 +2991,11 @@ function CalendarPage({
                                 <span className="calendar-event-title">
                                   {event.summary}
                                 </span>
+
                               </div>
                             )
                           )}
+
 
                         {events.length >
                           4 && (
@@ -2305,30 +3006,32 @@ function CalendarPage({
                             más
                           </div>
                         )}
+
                       </div>
+
                     </div>
                   );
                 }
               )}
+
             </div>
+
 
             {calendarLoading && (
               <div className="calendar-loading">
                 Cargando eventos…
               </div>
             )}
+
           </div>
         )}
 
-      <div className="calendar-note">
-        <CalendarDays
-          size={16}
-        />
 
-        Los eventos se leen
-        directamente desde Home
-        Assistant/Google Calendar.
+      <div className="calendar-note">
+        <CalendarDays size={16} />
+        Los eventos se leen directamente desde Home Assistant/Google Calendar.
       </div>
+
 
       {calendarModal && (
         <CreateEventModal
@@ -2337,44 +3040,76 @@ function CalendarPage({
               false
             )
           }
-          onCreate={onCreate}
+
+          onCreate={
+            onCreate
+          }
         />
       )}
+
     </section>
   );
 }
+
+
+/*
+ * ============================================================
+ * MODAL CALENDARIO
+ * ============================================================
+ */
 
 function CreateEventModal({
   onClose,
   onCreate
 }) {
-  const now = new Date();
+  const now =
+    new Date();
 
-  const pad = (n) =>
-    String(n).padStart(
-      2,
-      "0"
-    );
+  const pad =
+    (n) =>
+      String(n).padStart(
+        2,
+        "0"
+      );
 
   const dateValue =
     `${now.getFullYear()}-${pad(
       now.getMonth() + 1
-    )}-${pad(now.getDate())}`;
+    )}-${pad(
+      now.getDate()
+    )}`;
 
-  const [summary, setSummary] =
-    useState("");
 
-  const [date, setDate] =
-    useState(dateValue);
+  const [
+    summary,
+    setSummary
+  ] = useState("");
 
-  const [start, setStart] =
-    useState("10:00");
+  const [
+    date,
+    setDate
+  ] = useState(
+    dateValue
+  );
 
-  const [end, setEnd] =
-    useState("11:00");
+  const [
+    start,
+    setStart
+  ] = useState(
+    "10:00"
+  );
 
-  const [allDay, setAllDay] =
-    useState(false);
+  const [
+    end,
+    setEnd
+  ] = useState(
+    "11:00"
+  );
+
+  const [
+    allDay,
+    setAllDay
+  ] = useState(false);
 
   const [
     description,
@@ -2386,38 +3121,56 @@ function CreateEventModal({
     setLocation
   ] = useState("");
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    saving,
+    setSaving
+  ] = useState(false);
+
 
   async function submit(e) {
     e.preventDefault();
 
-    if (!summary.trim()) {
+    if (
+      !summary.trim()
+    ) {
       return;
     }
 
     setSaving(true);
 
-    const result = allDay
-      ? await onCreate({
-          summary:
-            summary.trim(),
-          description,
-          location,
-          start_date: date,
-          end_date:
-            addOneDay(date)
-        })
-      : await onCreate({
-          summary:
-            summary.trim(),
-          description,
-          location,
-          start_date_time:
-            `${date} ${start}:00`,
-          end_date_time:
-            `${date} ${end}:00`
-        });
+    const result =
+      allDay
+        ? await onCreate({
+            summary:
+              summary.trim(),
+
+            description,
+
+            location,
+
+            start_date:
+              date,
+
+            end_date:
+              addOneDay(
+                date
+              )
+          })
+        : await onCreate({
+            summary:
+              summary.trim(),
+
+            description,
+
+            location,
+
+            start_date_time:
+              `${date} ${start}:00`,
+
+            end_date_time:
+              `${date} ${end}:00`
+          });
+
 
     setSaving(false);
 
@@ -2426,23 +3179,25 @@ function CreateEventModal({
     }
   }
 
+
   return (
     <div
       className="modal-backdrop"
-      onMouseDown={(e) => {
-        if (
-          e.target ===
-          e.currentTarget
-        ) {
-          onClose();
-        }
-      }}
+
+      onMouseDown={(e) =>
+        e.target ===
+          e.currentTarget &&
+        onClose()
+      }
     >
+
       <form
-        className="modal"
+        className="modal-card"
         onSubmit={submit}
       >
+
         <div className="modal-header">
+
           <div>
             <div className="eyebrow">
               GOOGLE CALENDAR
@@ -2453,6 +3208,7 @@ function CreateEventModal({
             </h2>
           </div>
 
+
           <button
             type="button"
             className="modal-close"
@@ -2460,7 +3216,9 @@ function CreateEventModal({
           >
             <X size={20} />
           </button>
+
         </div>
+
 
         <label>
           Título
@@ -2473,9 +3231,11 @@ function CreateEventModal({
                 e.target.value
               )
             }
+
             placeholder="Título del evento"
           />
         </label>
+
 
         <label>
           Fecha
@@ -2491,7 +3251,9 @@ function CreateEventModal({
           />
         </label>
 
+
         <label className="checkbox-row">
+
           <input
             type="checkbox"
             checked={allDay}
@@ -2503,10 +3265,13 @@ function CreateEventModal({
           />
 
           Todo el día
+
         </label>
 
+
         {!allDay && (
-          <div className="time-grid">
+          <div className="modal-time-grid">
+
             <label>
               Inicio
 
@@ -2521,6 +3286,7 @@ function CreateEventModal({
               />
             </label>
 
+
             <label>
               Fin
 
@@ -2534,8 +3300,10 @@ function CreateEventModal({
                 }
               />
             </label>
+
           </div>
         )}
+
 
         <label>
           Ubicación
@@ -2547,9 +3315,11 @@ function CreateEventModal({
                 e.target.value
               )
             }
+
             placeholder="Opcional"
           />
         </label>
+
 
         <label>
           Descripción
@@ -2561,23 +3331,28 @@ function CreateEventModal({
                 e.target.value
               )
             }
+
             placeholder="Opcional"
             rows="3"
           />
         </label>
 
+
         <div className="modal-actions">
+
           <button
             type="button"
-            className="modal-cancel"
+            className="calendar-today"
             onClick={onClose}
           >
             Cancelar
           </button>
 
+
           <button
             type="submit"
             className="calendar-add"
+
             disabled={
               saving ||
               !summary.trim()
@@ -2587,18 +3362,29 @@ function CreateEventModal({
               ? "Guardando…"
               : "Guardar evento"}
           </button>
+
         </div>
+
       </form>
+
     </div>
   );
 }
 
+
+/*
+ * ============================================================
+ * AÑADIR UN DÍA
+ * ============================================================
+ */
+
 function addOneDay(
   dateString
 ) {
-  const d = new Date(
-    `${dateString}T00:00:00`
-  );
+  const d =
+    new Date(
+      `${dateString}T00:00:00`
+    );
 
   d.setDate(
     d.getDate() + 1
@@ -2609,6 +3395,13 @@ function addOneDay(
     .slice(0, 10);
 }
 
+
+/*
+ * ============================================================
+ * PLACEHOLDER
+ * ============================================================
+ */
+
 function Placeholder({
   icon,
   title,
@@ -2616,38 +3409,52 @@ function Placeholder({
 }) {
   return (
     <section className="card placeholder">
+
       <div className="placeholder-icon">
         {icon}
       </div>
 
-      <h2>{title}</h2>
+      <h2>
+        {title}
+      </h2>
 
-      <p>{text}</p>
+      <p>
+        {text}
+      </p>
+
     </section>
   );
 }
 
+
 /*
+ * ============================================================
  * AJUSTES
+ * ============================================================
  *
- * Aquí eliminamos URL y token.
+ * IMPORTANTE:
  *
- * El usuario ya NO necesita configurar
- * Home Assistant desde el navegador.
+ * Ya NO hay:
  *
- * El dashboard utiliza el backend/proxy
- * y funciona con la misma dirección desde
- * la que se sirve la aplicación.
+ * - URL Home Assistant
+ * - Token
+ *
+ * Porque server.mjs se encarga de autenticarse
+ * mediante SUPERVISOR_TOKEN.
  */
+
 function SettingsPage({
   config,
   setConfig
 }) {
-  const [price, setPrice] =
-    useState(
-      config.price ??
-        DEFAULT_PRICE
-    );
+  const [
+    price,
+    setPrice
+  ] = useState(
+    config.price ??
+      DEFAULT_PRICE
+  );
+
 
   const [
     yesterday,
@@ -2657,6 +3464,7 @@ function SettingsPage({
       ""
   );
 
+
   function save() {
     const newConfig = {
       price:
@@ -2664,8 +3472,10 @@ function SettingsPage({
         DEFAULT_PRICE,
 
       yesterdayKwh:
-        Number(yesterday) || 0
+        Number(yesterday) ||
+        0
     };
+
 
     localStorage.setItem(
       "casa_config",
@@ -2674,72 +3484,98 @@ function SettingsPage({
       )
     );
 
-    setConfig(newConfig);
+
+    setConfig(
+      newConfig
+    );
+
 
     /*
-     * Mensaje visual breve.
+     * Pequeña confirmación visual
      */
-    const event =
-      new CustomEvent(
-        "dashboard-message",
-        {
-          detail:
-            "Configuración guardada"
-        }
-      );
 
     window.dispatchEvent(
-      event
+      new CustomEvent(
+        "casa-settings-saved"
+      )
     );
   }
 
+
   return (
     <section className="card settings-page">
+
       <CardHead
-        icon={<Settings />}
+        icon={
+          <Settings />
+        }
         title="Configuración"
       />
 
+
       <p className="muted">
-        Los ajustes se guardan
-        localmente en este
-        dispositivo.
+        La conexión con Home Assistant
+        se realiza automáticamente a través
+        de la aplicación. No necesitas introducir
+        URL ni token.
       </p>
 
-      <div className="settings-group">
-        <label>
-          Precio de energía
-          (€/kWh)
 
-          <input
-            type="number"
-            step="0.001"
-            value={price}
-            onChange={(e) =>
-              setPrice(
-                e.target.value
-              )
-            }
-          />
-        </label>
+      <div className="settings-status">
 
-        <label>
-          Consumo de ayer
-          (kWh)
+        <div
+          className="security"
+        >
+          <Lock size={17} />
 
-          <input
-            type="number"
-            step="0.01"
-            value={yesterday}
-            onChange={(e) =>
-              setYesterday(
-                e.target.value
-              )
-            }
-            placeholder="Ejemplo: 2.35"
-          />
-        </label>
+          <span>
+            Home Assistant se conecta mediante
+            el proxy seguro del servidor de la aplicación.
+            El token de Supervisor nunca se guarda
+            en este navegador.
+          </span>
+        </div>
+
       </div>
+
+
+      <label>
+        Precio de energía
+        (€/kWh)
+
+        <input
+          type="number"
+          step="0.001"
+          value={price}
+
+          onChange={(e) =>
+            setPrice(
+              e.target.value
+            )
+          }
+        />
+      </label>
+
+
+      <label>
+        Consumo de ayer
+        (kWh)
+
+        <input
+          type="number"
+          step="0.01"
+          value={yesterday}
+
+          onChange={(e) =>
+            setYesterday(
+              e.target.value
+            )
+          }
+
+          placeholder="Se automatizará posteriormente"
+        />
+      </label>
+
 
       <button
         className="save"
@@ -2748,35 +3584,29 @@ function SettingsPage({
         Guardar configuración
       </button>
 
+
       <div className="security">
+
         <Lock size={17} />
 
         <span>
-          La conexión con Home
-          Assistant se realiza a
-          través del backend del
-          dashboard. No necesitas
-          introducir ni guardar un
-          token de Home Assistant
-          en el navegador.
+          El dashboard utiliza la autenticación
+          de Home Assistant. No introduzcas ni
+          publiques tokens de Home Assistant.
         </span>
+
       </div>
+
     </section>
   );
 }
 
-window.addEventListener(
-  "dashboard-message",
-  (event) => {
-    /*
-     * Este listener se mantiene
-     * para compatibilidad.
-     */
-    console.log(
-      event.detail
-    );
-  }
-);
+
+/*
+ * ============================================================
+ * RENDER
+ * ============================================================
+ */
 
 createRoot(
   document.getElementById(
